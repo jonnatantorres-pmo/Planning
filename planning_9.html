@@ -1783,14 +1783,16 @@ async function sincronizar() {
 }
 
 async function cargarIssues() {
-  // Endpoints CORS confirmados: /rest/api/3/myself, /rest/api/3/project/search, /rest/api/3/issue/{key}
-  // Usamos /rest/api/3/issue/picker que devuelve listas de issues y tiene CORS habilitado
+  // CORS confirmado: /rest/api/3/project/search ✅  /rest/api/3/issue/{key} ✅
+  // Estrategia: obtener issueCount por proyecto → construir claves → cargar en paralelo
 
   const excluir = CFG.estadosExcluir || [];
 
-  // 1. Proyectos V2
-  const proyData = await jiraFetch('/rest/api/3/project/search', { maxResults: 50 });
-  const proyV2   = (proyData.values || []).filter(p => esProyectoV2(p.key, p.name));
+  // 1. Proyectos V2 con su issueCount
+  const proyData = await jiraFetch('/rest/api/3/project/search', {
+    maxResults: 50, expand: 'issueCount',
+  });
+  const proyV2 = (proyData.values || []).filter(p => esProyectoV2(p.key, p.name));
 
   if (!proyV2.length) {
     toast('No se encontraron proyectos V2 en Jira', 'warn');
@@ -1798,51 +1800,56 @@ async function cargarIssues() {
   }
 
   const todasIssues = [];
+  const ISSUES_POR_PROYECTO = 60; // últimas N issues por proyecto
 
-  for (const proy of proyV2.slice(0, 5)) {
-    // issue/picker con JQL del proyecto — devuelve hasta 100 issues con CORS habilitado
+  for (const proy of proyV2) {
+    // Obtener detalle del proyecto para saber el issueCount real
+    let maxNum = 0;
     try {
-      const picker = await jiraFetch('/rest/api/3/issue/picker', {
-        currentJQL:   `project = ${proy.key} ORDER BY updated DESC`,
-        currentIssueKey: '',
-        showSubTasks: false,
-        query:        '',
-      });
-      // picker devuelve { sections: [{ id, label, issues: [{key, summaryText}] }] }
-      const keys = [];
-      for (const section of (picker.sections || [])) {
-        for (const i of (section.issues || [])) {
-          if (i.key) keys.push(i.key);
-        }
-      }
+      const det = await jiraFetch(`/rest/api/3/project/${proy.key}`);
+      // issueCount no siempre viene en project/search — usamos un número seguro
+      // basado en el id del proyecto (los ids son secuenciales en Jira)
+      // Alternativa: probar la issue más alta conocida
+      maxNum = parseInt(proy.issueCount || det.issueCount || 0);
+    } catch(_) {}
 
-      // Cargar detalle de cada issue en paralelo (lotes de 8)
-      for (let i = 0; i < keys.length; i += 8) {
-        const lote = keys.slice(i, i + 8);
-        const res  = await Promise.allSettled(
-          lote.map(k => jiraFetch(
-            `/rest/api/3/issue/${k}`,
-            { fields: 'summary,status,assignee,customfield_10016,created,updated,project,issuetype' }
-          ))
-        );
-        res.forEach(r => { if (r.status === 'fulfilled') todasIssues.push(r.value); });
+    // Si no tenemos issueCount, hacer una sonda binaria rápida (máx 4 llamadas)
+    if (!maxNum) {
+      for (const n of [500, 200, 100, 50, 20, 5, 1]) {
+        try {
+          await jiraFetch(`/rest/api/3/issue/${proy.key}-${n}`, { fields: 'summary' });
+          maxNum = n;
+          break;
+        } catch(_) {}
       }
-    } catch(e) {
-      console.warn(`[${proy.key}] picker falló:`, e.message);
+    }
+
+    if (!maxNum) continue;
+
+    // Cargar las últimas ISSUES_POR_PROYECTO issues en paralelo (lotes de 8)
+    const desde = Math.max(1, maxNum - ISSUES_POR_PROYECTO + 1);
+    const claves = [];
+    for (let n = maxNum; n >= desde; n--) claves.push(`${proy.key}-${n}`);
+
+    for (let i = 0; i < claves.length; i += 8) {
+      const lote = claves.slice(i, i + 8);
+      const res  = await Promise.allSettled(
+        lote.map(k => jiraFetch(`/rest/api/3/issue/${k}`, {
+          fields: 'summary,status,assignee,customfield_10016,created,updated,project,issuetype'
+        }))
+      );
+      res.forEach(r => { if (r.status === 'fulfilled') todasIssues.push(r.value); });
     }
   }
 
-  // 2. Procesar y filtrar
+  // 2. Procesar y filtrar estados excluidos
   ISSUES = todasIssues
     .map(raw => procesarIssueV2(raw))
     .filter(i => i && !excluir.some(e => i.estado.toLowerCase().includes(e.toLowerCase())));
 
-  const label = proyV2.map(p => limpiarNombreProyecto(p.name)).join(', ');
-  document.getElementById('sprint-label').textContent = `${label} · ${ISSUES.length} historias`;
-
-  if (!ISSUES.length) {
-    toast(`Proyectos V2 encontrados (${proyV2.map(p=>p.key).join(', ')}) pero sin historias. Revisa los estados excluidos en Configuración.`, 'warn');
-  }
+  const nombres = proyV2.slice(0, 4).map(p => limpiarNombreProyecto(p.name)).join(', ');
+  document.getElementById('sprint-label').textContent =
+    `${nombres}${proyV2.length > 4 ? ` +${proyV2.length - 4}` : ''} · ${ISSUES.length} historias`;
 }
 
 function procesarIssueV2(raw) {
@@ -2032,14 +2039,6 @@ function cargarDemoData() {
 /* ═══════════════════════════════════════════════════════════
    RENDER UI
 ═══════════════════════════════════════════════════════════ */
-function actualizarUI() {
-  document.getElementById('alerts-container').innerHTML = '';
-  renderStats();
-  renderBacklog();
-  renderPlanningBoard();
-  renderSeguimiento();
-  actualizarInfoStorage();
-}
 
 function renderStats() {
   const grupos = agruparPorClasificacion();
@@ -3924,9 +3923,16 @@ function copiarResumenEjecutivo() {
 }
 
 /* ── HOOK: actualizar ejecutivo tras sincronizar ────────── */
-const _actualizarUIOriginal = actualizarUI;
+const _actualizarUI_original = function() {
+  document.getElementById('alerts-container').innerHTML = '';
+  renderStats();
+  renderBacklog();
+  renderPlanningBoard();
+  renderSeguimiento();
+  actualizarInfoStorage();
+};
 function actualizarUI() {
-  _actualizarUIOriginal();
+  _actualizarUI_original();
   const tab = document.getElementById('tab-ejecutivo');
   if (tab?.classList.contains('active')) renderEjecutivo();
 }
