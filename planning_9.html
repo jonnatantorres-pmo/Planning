@@ -1,0 +1,3877 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OnCredit · Planning</title>
+<style>
+/* ── TOKENS ─────────────────────────────────────────────── */
+:root {
+  --rojo:       #F61B3F;
+  --rojo-dark:  #C4001C;
+  --rojo-light: #FDEAED;
+  --azul:       #06005F;
+  --azul-mid:   #1A1882;
+  --azul-light: #E8E8F8;
+  --blanco:     #FFFFFF;
+  --gris-100:   #F5F5F7;
+  --gris-200:   #E8E8EC;
+  --gris-300:   #C8C8D0;
+  --gris-500:   #7A7A88;
+  --gris-700:   #3A3A48;
+  --gris-900:   #18181F;
+  --verde:      #0F7B5A;
+  --verde-bg:   #E6F5EF;
+  --amber:      #9A5D00;
+  --amber-bg:   #FEF3DC;
+  --r: 6px;
+  --r-lg: 10px;
+  --shadow: 0 1px 3px rgba(6,0,95,.08);
+}
+
+/* ── RESET ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background: var(--gris-100); color: var(--gris-900);
+       font-size: 13px; line-height: 1.5; min-height: 100vh; }
+
+/* ── TOPBAR ─────────────────────────────────────────────── */
+.topbar {
+  background: var(--azul);
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 20px; height: 52px;
+  border-bottom: 2px solid var(--rojo);
+}
+.topbar-logo { display: flex; align-items: center; gap: 10px; }
+.topbar-logo svg { flex-shrink: 0; }
+.topbar-wordmark { color: #fff; font-size: 15px; font-weight: 600;
+                   letter-spacing: .02em; }
+.topbar-wordmark span { color: var(--rojo); }
+.topbar-divider { width: 1px; height: 20px; background: rgba(255,255,255,.2); }
+.topbar-subtitle { color: rgba(255,255,255,.55); font-size: 12px; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.sync-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--rojo); color: #fff;
+  border: none; border-radius: var(--r); padding: 6px 14px;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: background .15s;
+}
+.sync-btn:hover { background: var(--rojo-dark); }
+.sync-btn.loading { opacity: .7; pointer-events: none; }
+.sync-status { color: rgba(255,255,255,.5); font-size: 11px; }
+
+/* ── TABS ───────────────────────────────────────────────── */
+.tabs-bar {
+  background: #fff; border-bottom: 1px solid var(--gris-200);
+  display: flex; padding: 0 20px; gap: 0;
+}
+.tab-btn {
+  padding: 12px 18px; font-size: 13px; font-weight: 500;
+  color: var(--gris-500); border: none; background: none;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: color .15s, border-color .15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.tab-btn:hover { color: var(--azul); }
+.tab-btn.active { color: var(--azul); border-bottom-color: var(--rojo); }
+.tab-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 6px;
+  border-radius: 99px; background: var(--gris-200); color: var(--gris-700);
+}
+.tab-btn.active .tab-badge { background: var(--rojo-light); color: var(--rojo); }
+
+/* ── MAIN ───────────────────────────────────────────────── */
+.main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── ALERTS ─────────────────────────────────────────────── */
+.alerts-bar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.alert {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; border-radius: var(--r);
+  font-size: 12px; font-weight: 500;
+  border-left: 3px solid transparent;
+}
+.alert-warn { background: var(--amber-bg); color: var(--amber);
+              border-left-color: var(--amber); }
+.alert-error { background: var(--rojo-light); color: var(--rojo-dark);
+               border-left-color: var(--rojo); }
+.alert-info { background: var(--azul-light); color: var(--azul);
+              border-left-color: var(--azul); }
+.alert-close { margin-left: auto; background: none; border: none;
+               cursor: pointer; color: inherit; opacity: .6; font-size: 14px; }
+
+/* ── CARDS & GRIDS ──────────────────────────────────────── */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px; margin-bottom: 20px;
+}
+.stat-card {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 14px 16px;
+}
+.stat-label { font-size: 11px; color: var(--gris-500); margin-bottom: 4px; }
+.stat-value { font-size: 24px; font-weight: 700; color: var(--azul); line-height: 1; }
+.stat-value.red { color: var(--rojo); }
+.stat-value.green { color: var(--verde); }
+.stat-sub { font-size: 11px; color: var(--gris-500); margin-top: 3px; }
+
+/* ── CAPACIDAD BAR ──────────────────────────────────────── */
+.capacidad-panel {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.capacidad-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+}
+.capacidad-title { font-size: 13px; font-weight: 600; color: var(--azul); flex: 1; }
+.cap-input-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.cap-field { display: flex; flex-direction: column; gap: 4px; }
+.cap-field label { font-size: 11px; color: var(--gris-500); font-weight: 500; }
+.cap-field input {
+  width: 72px; padding: 5px 8px; border-radius: var(--r);
+  border: 1px solid var(--gris-300); font-size: 13px; font-weight: 600;
+  color: var(--azul); text-align: center;
+}
+.cap-bars { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.cap-bar-row { display: flex; align-items: center; gap: 10px; }
+.cap-bar-label { font-size: 11px; color: var(--gris-500); width: 50px; flex-shrink: 0; }
+.cap-bar-track {
+  flex: 1; height: 8px; background: var(--gris-200);
+  border-radius: 99px; overflow: hidden;
+}
+.cap-bar-fill {
+  height: 100%; border-radius: 99px;
+  background: var(--azul); transition: width .3s, background .3s;
+}
+.cap-bar-fill.warn { background: var(--amber); }
+.cap-bar-fill.over { background: var(--rojo); }
+.cap-bar-nums { font-size: 11px; font-weight: 600; color: var(--gris-700);
+                white-space: nowrap; min-width: 80px; text-align: right; }
+
+/* ── PLANNING BOARD ─────────────────────────────────────── */
+.board-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 280px;
+  gap: 12px;
+  align-items: start;
+}
+.board-col {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200);
+  display: flex; flex-direction: column;
+  min-height: 400px;
+}
+.board-col.sprint-col {
+  border-color: var(--azul); border-width: 1.5px;
+}
+.board-col-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--gris-200);
+  display: flex; align-items: center; gap: 8px;
+}
+.board-col-header h3 { font-size: 12px; font-weight: 600; color: var(--azul); flex: 1; }
+.col-count {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 99px; background: var(--gris-100); color: var(--gris-700);
+}
+.col-sp {
+  font-size: 10px; color: var(--gris-500);
+}
+.board-col-body {
+  padding: 10px; flex: 1;
+  min-height: 300px;
+  transition: background .15s;
+}
+.board-col-body.drag-over { background: var(--azul-light); }
+
+/* Sprint col split */
+.sprint-section { padding: 8px 10px 2px; }
+.sprint-section-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .08em; padding: 4px 6px; border-radius: 4px;
+  margin-bottom: 6px; display: inline-block;
+}
+.sprint-pareto-label { background: var(--azul); color: #fff; }
+.sprint-demas-label  { background: var(--gris-200); color: var(--gris-700); }
+.sprint-divider { height: 1px; background: var(--gris-200); margin: 8px 0; }
+
+/* ── HU CARD ────────────────────────────────────────────── */
+.hu-card {
+  background: #fff; border: 1px solid var(--gris-200);
+  border-radius: var(--r); padding: 10px 12px;
+  margin-bottom: 6px; cursor: grab;
+  transition: box-shadow .15s, border-color .15s;
+  user-select: none;
+}
+.hu-card:hover { border-color: var(--azul); box-shadow: var(--shadow); }
+.hu-card.dragging { opacity: .4; }
+.hu-card.bloqueada { border-left: 3px solid var(--rojo); }
+.hu-card.deuda     { border-left: 3px solid var(--amber); }
+.hu-card.dor       { border-left: 3px solid var(--azul); }
+.hu-card.uat       { border-left: 3px solid var(--verde); }
+
+.hu-top { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.hu-key {
+  font-size: 10px; font-weight: 600; color: var(--azul);
+  text-decoration: none; font-family: monospace;
+}
+.hu-key:hover { text-decoration: underline; }
+.hu-badge {
+  font-size: 9px; font-weight: 600; padding: 1px 6px;
+  border-radius: 99px; text-transform: uppercase; letter-spacing: .04em;
+}
+.badge-dor      { background: var(--azul-light); color: var(--azul); }
+.badge-deuda    { background: var(--amber-bg); color: var(--amber); }
+.badge-bloq     { background: var(--rojo-light); color: var(--rojo); }
+.badge-uat      { background: var(--verde-bg); color: var(--verde); }
+.badge-analisis { background: var(--gris-100); color: var(--gris-700); }
+
+.hu-sp {
+  margin-left: auto; font-size: 11px; font-weight: 700;
+  color: var(--azul); background: var(--azul-light);
+  padding: 1px 7px; border-radius: 99px; white-space: nowrap;
+}
+.hu-title { font-size: 12px; color: var(--gris-700); line-height: 1.4; margin-bottom: 5px; }
+.hu-bottom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.hu-project {
+  font-size: 10px; font-weight: 600; padding: 1px 7px;
+  border-radius: 99px; background: var(--gris-100); color: var(--gris-700);
+}
+.hu-project.pareto { background: var(--azul); color: #fff; }
+.hu-dias { font-size: 10px; color: var(--gris-500); margin-left: auto; }
+.hu-dias.warn { color: var(--amber); font-weight: 600; }
+.hu-dias.alert { color: var(--rojo); font-weight: 600; }
+
+/* ── SIDE PANEL ─────────────────────────────────────────── */
+.side-panel {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.side-card {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 14px 16px;
+}
+.side-card-title {
+  font-size: 12px; font-weight: 600; color: var(--azul);
+  margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+}
+.prioridad-list { display: flex; flex-direction: column; gap: 4px; }
+.prio-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: var(--r);
+  background: var(--gris-100); cursor: grab;
+  border: 1px solid transparent;
+  transition: border-color .15s;
+}
+.prio-row:hover { border-color: var(--gris-300); }
+.prio-row.dragging-prio { opacity: .4; }
+.prio-drag { color: var(--gris-300); font-size: 14px; flex-shrink: 0; }
+.prio-num { font-size: 10px; font-weight: 700; color: var(--gris-500); width: 16px; }
+.prio-name { font-size: 12px; font-weight: 500; color: var(--gris-700); flex: 1; }
+.prio-tag {
+  font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 99px;
+}
+.prio-tag.pareto { background: var(--azul); color: #fff; }
+.prio-tag.demas  { background: var(--gris-200); color: var(--gris-700); }
+
+/* ── RESUMEN TABLE ──────────────────────────────────────── */
+.resumen-panel {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); margin-top: 20px;
+}
+.resumen-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--gris-200);
+}
+.resumen-title { font-size: 13px; font-weight: 600; color: var(--azul); flex: 1; }
+.resumen-actions { display: flex; gap: 8px; }
+.btn-ghost {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: var(--r);
+  border: 1px solid var(--gris-300); background: none;
+  font-size: 11px; font-weight: 500; color: var(--gris-700);
+  cursor: pointer; transition: background .15s;
+}
+.btn-ghost:hover { background: var(--gris-100); }
+.btn-primary {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 14px; border-radius: var(--r);
+  border: none; background: var(--azul); color: #fff;
+  font-size: 11px; font-weight: 500; cursor: pointer;
+  transition: background .15s;
+}
+.btn-primary:hover { background: var(--azul-mid); }
+.btn-danger {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 14px; border-radius: var(--r);
+  border: none; background: var(--rojo); color: #fff;
+  font-size: 11px; font-weight: 500; cursor: pointer;
+  transition: background .15s;
+}
+.btn-danger:hover { background: var(--rojo-dark); }
+
+.resumen-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.resumen-table th {
+  padding: 8px 12px; text-align: left;
+  font-size: 10px; font-weight: 600; color: var(--gris-500);
+  text-transform: uppercase; letter-spacing: .06em;
+  background: var(--gris-100); border-bottom: 1px solid var(--gris-200);
+}
+.resumen-table td {
+  padding: 9px 12px; border-bottom: 1px solid var(--gris-100);
+  vertical-align: middle;
+}
+.resumen-table tr:last-child td { border-bottom: none; }
+.resumen-table tr:hover td { background: var(--gris-100); }
+.resumen-table .total-row td {
+  font-weight: 700; background: var(--gris-100);
+  border-top: 2px solid var(--gris-200);
+}
+.resumen-table .pareto-section td:first-child {
+  border-left: 3px solid var(--azul);
+}
+.resumen-table .demas-section td:first-child {
+  border-left: 3px solid var(--gris-300);
+}
+.section-header td {
+  background: var(--azul); color: #fff;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 5px 12px;
+}
+.section-header.demas td { background: var(--gris-200); color: var(--gris-700); }
+
+/* ── SEGUIMIENTO ────────────────────────────────────────── */
+.seg-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; margin-bottom: 16px;
+}
+.seg-card {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 14px 16px;
+}
+.seg-card-title {
+  font-size: 12px; font-weight: 600; color: var(--azul);
+  margin-bottom: 12px;
+}
+.semaforo-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.semaforo-item {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px; border-radius: var(--r);
+  border: 1px solid var(--gris-200);
+  align-items: center; text-align: center;
+}
+.semaforo-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+}
+.dot-green  { background: var(--verde); }
+.dot-amber  { background: #F59E0B; }
+.dot-red    { background: var(--rojo); }
+.semaforo-name { font-size: 11px; font-weight: 600; color: var(--gris-700); }
+.semaforo-sp   { font-size: 10px; color: var(--gris-500); }
+
+/* ── CONFIG PANEL ───────────────────────────────────────── */
+.config-section {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.config-section-title {
+  font-size: 13px; font-weight: 600; color: var(--azul);
+  margin-bottom: 14px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--gris-200);
+}
+.config-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  flex-wrap: wrap; margin-bottom: 10px;
+}
+.config-field { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
+.config-field label { font-size: 11px; font-weight: 500; color: var(--gris-500); }
+.config-field input, .config-field select {
+  padding: 7px 10px; border-radius: var(--r);
+  border: 1px solid var(--gris-300); font-size: 13px;
+}
+.config-field input:focus, .config-field select:focus {
+  outline: none; border-color: var(--azul);
+  box-shadow: 0 0 0 2px rgba(6,0,95,.1);
+}
+
+/* ── TOAST ──────────────────────────────────────────────── */
+.toast-container {
+  position: fixed; bottom: 20px; right: 20px;
+  display: flex; flex-direction: column; gap: 8px; z-index: 1000;
+}
+.toast {
+  padding: 10px 16px; border-radius: var(--r);
+  font-size: 12px; font-weight: 500;
+  background: var(--azul); color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  animation: toastIn .2s ease; max-width: 280px;
+}
+.toast.success { background: var(--verde); }
+.toast.error   { background: var(--rojo); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── EMPTY STATE ────────────────────────────────────────── */
+.empty-state {
+  padding: 32px 16px; text-align: center;
+  color: var(--gris-500); font-size: 12px;
+}
+.empty-state svg { margin-bottom: 8px; opacity: .4; }
+
+/* ── MODAL ──────────────────────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(6,0,95,.4);
+  z-index: 500; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: #fff; border-radius: var(--r-lg);
+  padding: 24px; width: 480px; max-width: 95vw;
+  box-shadow: 0 8px 32px rgba(6,0,95,.2);
+}
+.modal-title {
+  font-size: 15px; font-weight: 600; color: var(--azul);
+  margin-bottom: 16px;
+}
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* ── SCROLLBAR ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gris-300); border-radius: 99px; }
+
+/* ── FILTER BAR ─────────────────────────────────────────── */
+.filter-bar {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.filter-bar-label { font-size: 11px; color: var(--gris-500); margin-right: 4px; }
+.filter-btn {
+  padding: 4px 12px; border-radius: 99px;
+  border: 1px solid var(--gris-300); background: none;
+  font-size: 11px; font-weight: 500; color: var(--gris-700);
+  cursor: pointer; transition: all .15s;
+}
+.filter-btn:hover { border-color: var(--azul); color: var(--azul); }
+.filter-btn.active { background: var(--azul); color: #fff; border-color: var(--azul); }
+.filter-btn.active.pareto-filter { background: var(--azul); }
+.filter-btn.active.demas-filter  { background: var(--gris-700); border-color: var(--gris-700); }
+
+/* ── SUBGROUP DIVIDER (dentro de columnas del board) ────── */
+.col-subgroup { margin-bottom: 8px; }
+.col-subgroup-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; padding: 3px 6px; border-radius: 3px;
+  margin-bottom: 5px; display: inline-block;
+}
+.col-subgroup-label.pareto { background: var(--azul); color: #fff; }
+.col-subgroup-label.demas  { background: var(--gris-200); color: var(--gris-700); }
+.col-subgroup-sep { height: 1px; background: var(--gris-200); margin: 8px 0 6px; }
+
+/* ── FASE 2: RIESGO & SEGUIMIENTO ───────────────────────── */
+.riesgo-panel {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.riesgo-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.riesgo-title { font-size: 13px; font-weight: 600; color: var(--azul); flex: 1; }
+.riesgo-badge {
+  font-size: 11px; font-weight: 700; padding: 3px 12px;
+  border-radius: 99px; letter-spacing: .02em;
+}
+.riesgo-verde  { background: var(--verde-bg);  color: var(--verde); }
+.riesgo-amber  { background: var(--amber-bg);  color: var(--amber); }
+.riesgo-rojo   { background: var(--rojo-light);color: var(--rojo);  }
+
+.burndown-wrap { position: relative; height: 180px; margin-bottom: 16px; }
+.burndown-wrap canvas { width: 100% !important; }
+
+.riesgo-rows { display: flex; flex-direction: column; gap: 6px; }
+.riesgo-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: var(--r);
+  border: 1px solid var(--gris-200); font-size: 12px;
+}
+.riesgo-row-icon { font-size: 15px; flex-shrink: 0; }
+.riesgo-row-text { flex: 1; color: var(--gris-700); }
+.riesgo-row-tag {
+  font-size: 10px; font-weight: 600; padding: 1px 8px;
+  border-radius: 99px; white-space: nowrap;
+}
+.riesgo-row.nivel-alto   { border-left: 3px solid var(--rojo);  background: var(--rojo-light); }
+.riesgo-row.nivel-medio  { border-left: 3px solid var(--amber); background: var(--amber-bg);  }
+.riesgo-row.nivel-info   { border-left: 3px solid var(--azul);  background: var(--azul-light);}
+
+.seg3-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px; margin-bottom: 16px;
+}
+.mitad-panel {
+  background: #fff; border-radius: var(--r-lg);
+  border: 2px solid var(--azul); padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.mitad-title {
+  font-size: 13px; font-weight: 600; color: var(--azul);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.mitad-badge {
+  font-size: 10px; background: var(--azul); color: #fff;
+  padding: 2px 8px; border-radius: 99px;
+}
+.cierre-panel {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.cierre-title { font-size: 13px; font-weight: 600; color: var(--azul); margin-bottom: 14px; }
+
+.seg-issues-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.seg-issues-table th {
+  padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 600;
+  color: var(--gris-500); text-transform: uppercase; letter-spacing: .06em;
+  background: var(--gris-100); border-bottom: 1px solid var(--gris-200);
+  position: sticky; top: 0;
+}
+.seg-issues-table td { padding: 8px 10px; border-bottom: 1px solid var(--gris-100); vertical-align: middle; }
+.seg-issues-table tr:hover td { background: var(--gris-100); }
+.seg-issues-wrap { max-height: 420px; overflow-y: auto; border-radius: var(--r); border: 1px solid var(--gris-200); }
+
+.dias-chip {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+}
+.dias-ok     { background: var(--verde-bg);  color: var(--verde); }
+.dias-warn   { background: var(--amber-bg);  color: var(--amber); }
+.dias-alert  { background: var(--rojo-light);color: var(--rojo);  }
+
+.progress-ring-wrap { display: flex; align-items: center; gap: 16px; }
+.progress-ring-text { text-align: center; }
+.progress-ring-pct  { font-size: 28px; font-weight: 700; color: var(--azul); line-height: 1; }
+.progress-ring-sub  { font-size: 11px; color: var(--gris-500); margin-top: 2px; }
+
+/* ── FASE 3: MÉTRICAS ───────────────────────────────────── */
+.met-layout {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 14px; margin-bottom: 14px;
+}
+.met-layout.full { grid-template-columns: 1fr; }
+.met-card {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 16px 20px;
+}
+.met-card-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+}
+.met-card-title { font-size: 13px; font-weight: 600; color: var(--azul); flex: 1; }
+.met-card-sub   { font-size: 11px; color: var(--gris-500); }
+
+.range-btns { display: flex; gap: 4px; margin-bottom: 14px; }
+.range-btn {
+  padding: 3px 10px; border-radius: 99px; border: 1px solid var(--gris-300);
+  background: none; font-size: 11px; font-weight: 500; color: var(--gris-700);
+  cursor: pointer; transition: all .15s;
+}
+.range-btn.active { background: var(--azul); color: #fff; border-color: var(--azul); }
+
+.chart-wrap { position: relative; height: 200px; }
+.chart-wrap.tall { height: 240px; }
+.chart-wrap canvas { width: 100% !important; display: block; }
+
+.met-kpi-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-bottom: 14px;
+}
+.met-kpi {
+  background: var(--gris-100); border-radius: var(--r);
+  padding: 10px 12px; text-align: center;
+}
+.met-kpi-val { font-size: 22px; font-weight: 700; color: var(--azul); line-height: 1; }
+.met-kpi-lbl { font-size: 10px; color: var(--gris-500); margin-top: 3px; }
+.met-kpi-delta {
+  font-size: 10px; font-weight: 600; margin-top: 2px;
+}
+.delta-up   { color: var(--verde); }
+.delta-down { color: var(--rojo);  }
+.delta-flat { color: var(--gris-500); }
+
+.hist-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.hist-table th {
+  padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 600;
+  color: var(--gris-500); text-transform: uppercase; letter-spacing: .06em;
+  background: var(--gris-100); border-bottom: 1px solid var(--gris-200);
+  position: sticky; top: 0;
+}
+.hist-table td { padding: 8px 10px; border-bottom: 1px solid var(--gris-100); vertical-align: middle; }
+.hist-table tr:hover td { background: var(--gris-100); }
+.hist-table tr:last-child td { border-bottom: none; }
+.hist-wrap { max-height: 340px; overflow-y: auto; border-radius: var(--r); border: 1px solid var(--gris-200); }
+
+.pct-bar-inline {
+  display: flex; align-items: center; gap: 6px;
+}
+.pct-bar-track {
+  flex: 1; height: 6px; background: var(--gris-200); border-radius: 99px; overflow: hidden; min-width: 60px;
+}
+.pct-bar-fill { height: 100%; border-radius: 99px; }
+.pct-val { font-size: 11px; font-weight: 600; min-width: 34px; text-align: right; }
+
+.deuda-tag {
+  font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 99px;
+}
+
+/* ── FASE 4: VISTA EJECUTIVA ────────────────────────────── */
+.ej-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.ej-proj-card {
+  background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 14px 16px;
+  cursor: default; transition: box-shadow .15s;
+}
+.ej-proj-card:hover { box-shadow: var(--shadow); }
+.ej-proj-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ej-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ej-proj-name { font-size: 13px; font-weight: 600; color: var(--azul); flex: 1; }
+.ej-pareto-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 99px;
+  background: var(--azul); color: #fff;
+}
+.ej-proj-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ej-proj-stat { background: var(--gris-100); border-radius: 5px; padding: 6px 8px; }
+.ej-proj-stat-val { font-size: 16px; font-weight: 700; color: var(--azul); line-height: 1; }
+.ej-proj-stat-lbl { font-size: 10px; color: var(--gris-500); margin-top: 1px; }
+
+.ej-section { background: #fff; border-radius: var(--r-lg);
+  border: 1px solid var(--gris-200); padding: 16px 20px; margin-bottom: 14px; }
+.ej-section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.ej-section-title { font-size: 13px; font-weight: 600; color: var(--azul); flex: 1; }
+.ej-section-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 99px;
+  background: var(--rojo-light); color: var(--rojo);
+}
+
+.ej-cap-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+.ej-cap-block { display: flex; flex-direction: column; gap: 2px; min-width: 100px; }
+.ej-cap-val { font-size: 22px; font-weight: 700; color: var(--azul); line-height: 1; }
+.ej-cap-lbl { font-size: 11px; color: var(--gris-500); }
+
+.ej-uat-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.ej-uat-table th { padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 600;
+  color: var(--gris-500); text-transform: uppercase; letter-spacing: .06em;
+  background: var(--gris-100); border-bottom: 1px solid var(--gris-200); }
+.ej-uat-table td { padding: 8px 10px; border-bottom: 1px solid var(--gris-100); vertical-align: middle; }
+.ej-uat-table tr:last-child td { border-bottom: none; }
+.ej-uat-table tr:hover td { background: var(--gris-100); }
+
+.ej-deploy-row { display: flex; align-items: center; gap: 12px; padding: 9px 0;
+  border-bottom: 1px solid var(--gris-100); }
+.ej-deploy-row:last-child { border-bottom: none; }
+.ej-deploy-date { font-size: 11px; font-weight: 700; color: var(--azul);
+  min-width: 80px; font-family: monospace; }
+.ej-deploy-proj { font-size: 11px; font-weight: 600; color: var(--gris-700); flex: 1; }
+.ej-deploy-status {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+}
+.ej-deploy-add { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.ej-deploy-add input {
+  padding: 5px 10px; border-radius: var(--r); border: 1px solid var(--gris-300);
+  font-size: 12px; flex: 1; min-width: 120px;
+}
+.ej-deploy-add input:focus { outline: none; border-color: var(--azul); }
+
+/* ── LOADING ────────────────────────────────────────────── */
+.spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  animation: spin .6s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ─────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="topbar-logo">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="6" fill="#F61B3F"/>
+      <text x="14" y="20" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" font-family="sans-serif">OC</text>
+    </svg>
+    <span class="topbar-wordmark">On<span>Credit</span> · Planning</span>
+  </div>
+  <div class="topbar-divider"></div>
+  <span class="topbar-subtitle" id="sprint-label">Sincroniza para ver el sprint activo</span>
+  <div class="topbar-right">
+    <span class="sync-status" id="sync-status"></span>
+    <button class="sync-btn" id="sync-btn" onclick="sincronizar()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/>
+        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+      </svg>
+      Sincronizar Jira
+    </button>
+  </div>
+</header>
+
+<!-- ── TABS ───────────────────────────────────────────── -->
+<nav class="tabs-bar">
+  <button class="tab-btn" onclick="showTab('ejecutivo', this)">
+    Ejecutivo
+  </button>
+  <button class="tab-btn active" onclick="showTab('backlog', this)">
+    Backlog <span class="tab-badge" id="badge-backlog">0</span>
+  </button>
+  <button class="tab-btn" onclick="showTab('planning', this)">
+    Planning
+  </button>
+  <button class="tab-btn" onclick="showTab('seguimiento', this)">
+    Seguimiento <span class="tab-badge" id="badge-seg">0</span>
+  </button>
+  <button class="tab-btn" onclick="showTab('metricas', this)">
+    Métricas
+  </button>
+  <button class="tab-btn" onclick="showTab('configuracion', this)">
+    Configuración
+  </button>
+</nav>
+
+<main class="main">
+
+  <!-- ════════════════════════════════════════════════════
+       TAB: EJECUTIVO  (Fase 4)
+  ════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-ejecutivo">
+
+    <!-- Acciones rápidas -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--gris-500)" id="ej-last-update">Sincroniza para actualizar</span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn-ghost" onclick="copiarResumenEjecutivo()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copiar resumen para Slack
+        </button>
+        <button class="btn-primary" onclick="sincronizar()">Actualizar datos</button>
+      </div>
+    </div>
+
+    <!-- Capacidad del sprint activo -->
+    <div class="ej-section">
+      <div class="ej-section-header">
+        <span class="ej-section-title">Capacidad del sprint activo</span>
+        <span id="ej-sprint-nombre" style="font-size:11px;color:var(--gris-500)">—</span>
+      </div>
+      <div class="ej-cap-row" id="ej-capacidad-row">
+        <div class="ej-cap-block">
+          <span class="ej-cap-val" id="ej-sp-total">—</span>
+          <span class="ej-cap-lbl">SP comprometidos</span>
+        </div>
+        <div class="ej-cap-block">
+          <span class="ej-cap-val" id="ej-sp-disp" style="color:var(--verde)">—</span>
+          <span class="ej-cap-lbl">SP disponibles</span>
+        </div>
+        <div class="ej-cap-block">
+          <span class="ej-cap-val" id="ej-sp-pareto">—</span>
+          <span class="ej-cap-lbl">SP Pareto</span>
+        </div>
+        <div class="ej-cap-block">
+          <span class="ej-cap-val" id="ej-sp-demas">—</span>
+          <span class="ej-cap-lbl">SP Demás clientes</span>
+        </div>
+        <div class="ej-cap-block">
+          <span class="ej-cap-val" id="ej-pct-pareto" style="color:var(--azul)">—</span>
+          <span class="ej-cap-lbl">% Pareto</span>
+        </div>
+        <div class="ej-cap-block">
+          <span class="ej-cap-val" id="ej-hu-total">—</span>
+          <span class="ej-cap-lbl">Historias totales</span>
+        </div>
+      </div>
+      <div id="ej-cap-bar-wrap" style="margin-top:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;color:var(--gris-500);width:50px">Uso</span>
+          <div style="flex:1;height:10px;background:var(--gris-200);border-radius:99px;overflow:hidden">
+            <div id="ej-uso-bar" style="height:100%;background:var(--azul);border-radius:99px;transition:width .3s;width:0%"></div>
+          </div>
+          <span style="font-size:11px;font-weight:600;color:var(--gris-700);min-width:60px;text-align:right" id="ej-uso-pct">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid de proyectos -->
+    <div class="ej-section">
+      <div class="ej-section-header">
+        <span class="ej-section-title">Estado por proyecto</span>
+        <span class="ej-section-badge" id="ej-badge-riesgo" style="display:none">0 en riesgo</span>
+      </div>
+      <div class="ej-grid" id="ej-proyectos-grid">
+        <div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--gris-500);font-size:12px">
+          Selecciona historias en Planning para ver el estado por proyecto
+        </div>
+      </div>
+    </div>
+
+    <!-- Dos columnas: UAT + Riesgos -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+
+      <!-- Historias en UAT -->
+      <div class="ej-section" style="margin-bottom:0">
+        <div class="ej-section-header">
+          <span class="ej-section-title">Historias en UAT</span>
+          <span class="ej-section-badge" id="ej-badge-uat">0</span>
+        </div>
+        <div style="max-height:300px;overflow-y:auto;border-radius:var(--r);border:1px solid var(--gris-200)">
+          <table class="ej-uat-table">
+            <thead>
+              <tr>
+                <th>Clave</th>
+                <th>Proyecto</th>
+                <th style="text-align:center">Días</th>
+                <th style="text-align:center">SP</th>
+              </tr>
+            </thead>
+            <tbody id="ej-uat-tbody">
+              <tr><td colspan="4" style="padding:16px;text-align:center;color:var(--gris-500)">Sin historias en UAT</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Riesgos principales -->
+      <div class="ej-section" style="margin-bottom:0">
+        <div class="ej-section-header">
+          <span class="ej-section-title">Riesgos principales</span>
+        </div>
+        <div id="ej-riesgos-list">
+          <div style="font-size:12px;color:var(--gris-500);padding:8px 0">Sin alertas activas</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Próximos despliegues -->
+    <div class="ej-section">
+      <div class="ej-section-header">
+        <span class="ej-section-title">Próximos despliegues</span>
+        <span style="font-size:11px;color:var(--gris-500)">Gestionado localmente</span>
+      </div>
+      <div id="ej-deploys-list" style="margin-bottom:12px"></div>
+      <!-- Formulario para agregar despliegue -->
+      <div class="ej-deploy-add">
+        <input type="date" id="ej-dep-fecha" style="max-width:140px">
+        <input type="text" id="ej-dep-proyecto" placeholder="Proyecto (ej: Yamaha)">
+        <input type="text" id="ej-dep-notas" placeholder="Notas del despliegue">
+        <button class="btn-primary" onclick="agregarDespliegue()">+ Agregar</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       TAB: BACKLOG
+  ════════════════════════════════════════════════════ -->
+  <div class="tab-panel active" id="tab-backlog">
+
+    <div class="alerts-bar" id="alerts-container"></div>
+
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Listas para tomar (DOR)</div>
+        <div class="stat-value" id="stat-dor">—</div>
+        <div class="stat-sub" id="stat-dor-sp">— SP</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">En deuda</div>
+        <div class="stat-value red" id="stat-deuda">—</div>
+        <div class="stat-sub" id="stat-deuda-sp">— SP</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">En análisis</div>
+        <div class="stat-value" id="stat-analisis">—</div>
+        <div class="stat-sub" id="stat-analisis-sp">— SP</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">En UAT</div>
+        <div class="stat-value green" id="stat-uat">—</div>
+        <div class="stat-sub" id="stat-uat-sp">— SP</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Bloqueadas</div>
+        <div class="stat-value red" id="stat-bloq">—</div>
+        <div class="stat-sub">Requieren atención</div>
+      </div>
+    </div>
+
+    <!-- Backlog list by estado -->
+    <div id="backlog-sections"></div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       TAB: PLANNING
+  ════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-planning">
+
+    <!-- Capacidad -->
+    <div class="capacidad-panel">
+      <div class="capacidad-header">
+        <span class="capacidad-title">Capacidad del equipo — <span id="cap-semana">semana actual</span></span>
+        <button class="btn-ghost" onclick="resetCapacidad()">Restablecer</button>
+      </div>
+      <div class="cap-input-row">
+        <div class="cap-field">
+          <label>SP disponibles</label>
+          <input type="number" id="cap-dev" value="30" min="1" max="100" oninput="recalcCapacidad()">
+        </div>
+        <div class="cap-field">
+          <label>SP Refinamiento</label>
+          <input type="number" id="cap-ref" value="8" min="1" max="30" oninput="recalcCapacidad()">
+        </div>
+      </div>
+      <div class="cap-bars">
+        <div class="cap-bar-row">
+          <span class="cap-bar-label">Uso</span>
+          <div class="cap-bar-track"><div class="cap-bar-fill" id="bar-dev" style="width:0%"></div></div>
+          <span class="cap-bar-nums" id="nums-dev">0 / 30 SP</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros del board -->
+    <div class="filter-bar">
+      <span class="filter-bar-label">Mostrar:</span>
+      <button class="filter-btn active" id="filter-todos" onclick="setFiltro('todos', this)">Todos</button>
+      <button class="filter-btn pareto-filter" id="filter-pareto" onclick="setFiltro('pareto', this)">Solo Pareto</button>
+      <button class="filter-btn demas-filter"  id="filter-demas"  onclick="setFiltro('demas', this)">Solo Demás clientes</button>
+    </div>
+
+    <!-- Board -->
+    <div class="board-layout">
+
+      <!-- Col DOR -->
+      <div class="board-col">
+        <div class="board-col-header">
+          <h3>Listas para tomar</h3>
+          <span class="col-count" id="cnt-dor">0</span>
+          <span class="col-sp" id="sp-dor">0 SP</span>
+        </div>
+        <div class="board-col-body" id="col-dor"
+             ondragover="onDragOver(event,'dor')"
+             ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event,'dor')">
+          <div class="empty-state">
+            <div>Arrastra historias aquí<br>o sincroniza Jira</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Col DEUDA -->
+      <div class="board-col">
+        <div class="board-col-header">
+          <h3>Deuda</h3>
+          <span class="col-count" id="cnt-deuda">0</span>
+          <span class="col-sp" id="sp-deuda">0 SP</span>
+        </div>
+        <div class="board-col-body" id="col-deuda"
+             ondragover="onDragOver(event,'deuda')"
+             ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event,'deuda')">
+          <div class="empty-state"><div>Sin deuda activa</div></div>
+        </div>
+      </div>
+
+      <!-- Col BLOQUEADAS -->
+      <div class="board-col">
+        <div class="board-col-header">
+          <h3>Bloqueadas</h3>
+          <span class="col-count" id="cnt-bloq">0</span>
+          <span class="col-sp" id="sp-bloq">0 SP</span>
+        </div>
+        <div class="board-col-body" id="col-bloq"
+             ondragover="onDragOver(event,'bloqueada')"
+             ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event,'bloqueada')">
+          <div class="empty-state"><div>Sin bloqueos activos</div></div>
+        </div>
+      </div>
+
+      <!-- Col SPRINT (Pareto + Demás) -->
+      <div class="board-col sprint-col">
+        <div class="board-col-header">
+          <h3>Sprint seleccionado</h3>
+          <span class="col-sp" id="sp-sprint-total">0 SP</span>
+        </div>
+
+        <div class="sprint-section">
+          <span class="sprint-section-label sprint-pareto-label">Pareto</span>
+          <div id="sprint-pareto"
+               ondragover="onDragOver(event,'sprint-pareto')"
+               ondragleave="onDragLeave(event)"
+               ondrop="onDrop(event,'sprint-pareto')">
+            <div class="empty-state" style="padding:12px 0;font-size:11px">Arrastra historias Pareto</div>
+          </div>
+        </div>
+
+        <div class="sprint-divider"></div>
+
+        <div class="sprint-section">
+          <span class="sprint-section-label sprint-demas-label">Demás clientes</span>
+          <div id="sprint-demas"
+               ondragover="onDragOver(event,'sprint-demas')"
+               ondragleave="onDragLeave(event)"
+               ondrop="onDrop(event,'sprint-demas')">
+            <div class="empty-state" style="padding:12px 0;font-size:11px">Arrastra otras historias</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Resumen tipo Excel -->
+    <div class="resumen-panel" id="resumen-panel">
+      <div class="resumen-header">
+        <span class="resumen-title">Resumen de planning — <span id="resumen-fecha"></span></span>
+        <div class="resumen-actions">
+          <button class="btn-ghost" onclick="copiarResumen()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copiar
+          </button>
+          <button class="btn-primary" onclick="confirmarSprint()">
+            Confirmar sprint
+          </button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="resumen-table" id="resumen-table">
+          <thead>
+            <tr>
+              <th>Cliente / Proyecto</th>
+              <th>Deuda</th>
+              <th>SP Deuda</th>
+              <th>DOR</th>
+              <th>SP DOR</th>
+              <th>Bloqueadas</th>
+              <th>SP Bloq</th>
+              <th>Total HU</th>
+              <th>Total SP</th>
+            </tr>
+          </thead>
+          <tbody id="resumen-tbody">
+            <tr>
+              <td colspan="9" style="text-align:center;padding:20px;color:var(--gris-500)">
+                Agrega historias al sprint para ver el resumen
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       TAB: SEGUIMIENTO  (Fase 2)
+  ════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-seguimiento">
+
+    <!-- Panel de riesgo global -->
+    <div class="riesgo-panel" id="riesgo-panel">
+      <div class="riesgo-header">
+        <span class="riesgo-title">Riesgo del sprint</span>
+        <span class="riesgo-badge riesgo-verde" id="riesgo-badge">Sin datos</span>
+        <button class="btn-ghost" style="font-size:11px" onclick="sincronizarSeguimiento()">Actualizar</button>
+        <span id="seg-last-sync" style="font-size:11px;color:var(--gris-500)"></span>
+      </div>
+      <div id="riesgo-rows" class="riesgo-rows">
+        <div class="riesgo-row nivel-info">
+          <span class="riesgo-row-icon">ℹ</span>
+          <span class="riesgo-row-text">Confirma un sprint en Planning para activar el seguimiento</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats + burndown -->
+    <div class="seg-grid" style="grid-template-columns:auto 1fr;align-items:start">
+
+      <!-- Métricas rápidas -->
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:220px">
+
+        <div class="seg-card" style="padding:14px 16px">
+          <div class="seg-card-title" style="margin-bottom:10px">Cumplimiento</div>
+          <div class="progress-ring-wrap">
+            <canvas id="ring-canvas" width="80" height="80"></canvas>
+            <div class="progress-ring-text">
+              <div class="progress-ring-pct" id="ring-pct">—</div>
+              <div class="progress-ring-sub" id="ring-sub">— / — SP</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="seg-card" style="padding:12px 14px">
+          <div class="stat-label">SP comprometidos</div>
+          <div class="stat-value" id="seg-comprometidos" style="font-size:20px">—</div>
+        </div>
+        <div class="seg-card" style="padding:12px 14px">
+          <div class="stat-label">SP completados</div>
+          <div class="stat-value green" id="seg-completados" style="font-size:20px">—</div>
+        </div>
+        <div class="seg-card" style="padding:12px 14px">
+          <div class="stat-label">Días restantes</div>
+          <div class="stat-value" id="seg-dias-rest" style="font-size:20px">—</div>
+        </div>
+        <div class="seg-card" style="padding:12px 14px">
+          <div class="stat-label">Velocity base (últimos sprints)</div>
+          <div class="stat-value" id="seg-velocity" style="font-size:20px">—</div>
+          <div class="stat-sub" id="seg-velocity-sub">SP / semana promedio</div>
+        </div>
+      </div>
+
+      <!-- Burndown + semáforos -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="seg-card">
+          <div class="seg-card-title">Burndown del sprint</div>
+          <div class="burndown-wrap">
+            <canvas id="burndown-canvas"></canvas>
+          </div>
+        </div>
+        <div class="seg-card">
+          <div class="seg-card-title">Semáforo por proyecto</div>
+          <div class="semaforo-grid" id="semaforo-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Revisión mitad de sprint -->
+    <div class="mitad-panel" id="mitad-panel">
+      <div class="mitad-title">
+        Revisión mitad de sprint
+        <span class="mitad-badge" id="mitad-badge">día — de —</span>
+      </div>
+      <div id="mitad-content">
+        <div style="font-size:12px;color:var(--gris-500)">Activa un sprint para ver la revisión de mitad.</div>
+      </div>
+    </div>
+
+    <!-- Historias del sprint -->
+    <div class="seg-card" style="background:#fff;border-radius:var(--r-lg);border:1px solid var(--gris-200);padding:0;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--gris-200)">
+        <span class="seg-card-title" style="margin-bottom:0">Historias del sprint</span>
+        <span id="badge-bloq-seg" style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:var(--rojo-light);color:var(--rojo);display:none">0 bloqueadas</span>
+        <span id="badge-ret-seg"  style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:var(--amber-bg);color:var(--amber);display:none">0 retrasadas</span>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="filter-btn active" id="sf-todos"   onclick="setSeguimientoFiltro('todos',this)"  style="padding:3px 10px;font-size:10px">Todas</button>
+          <button class="filter-btn"        id="sf-bloq"    onclick="setSeguimientoFiltro('bloq',this)"   style="padding:3px 10px;font-size:10px">Bloqueadas</button>
+          <button class="filter-btn"        id="sf-riesgo"  onclick="setSeguimientoFiltro('riesgo',this)" style="padding:3px 10px;font-size:10px">En riesgo</button>
+        </div>
+      </div>
+      <div class="seg-issues-wrap">
+        <table class="seg-issues-table">
+          <thead>
+            <tr>
+              <th>Clave</th>
+              <th>Historia</th>
+              <th>Proyecto</th>
+              <th style="text-align:center">SP</th>
+              <th>Estado</th>
+              <th style="text-align:center">Días sin cambio</th>
+              <th style="text-align:center">Riesgo</th>
+              <th style="text-align:center">Completada</th>
+            </tr>
+          </thead>
+          <tbody id="sprint-seguimiento-list"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Cierre de sprint -->
+    <div class="cierre-panel" id="cierre-panel">
+      <div class="cierre-title">Cierre de sprint</div>
+      <div id="cierre-content">
+        <div style="font-size:12px;color:var(--gris-500);margin-bottom:14px">
+          Al cerrar el sprint se guarda el registro de cumplimiento y las historias no completadas quedan listas para arrastrarse al siguiente.
+        </div>
+        <div id="cierre-arrastres" style="margin-bottom:14px"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-primary" onclick="abrirModalCierre()">Cerrar sprint y registrar</button>
+          <button class="btn-ghost"   onclick="renderCierrePanel()">Actualizar vista</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       TAB: MÉTRICAS  (Fase 3)
+  ════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-metricas">
+
+    <!-- KPIs globales -->
+    <div class="met-kpi-row" id="met-kpis">
+      <div class="met-kpi">
+        <div class="met-kpi-val" id="kpi-velocity">—</div>
+        <div class="met-kpi-lbl">Velocity promedio (SP)</div>
+        <div class="met-kpi-delta" id="kpi-velocity-delta"></div>
+      </div>
+      <div class="met-kpi">
+        <div class="met-kpi-val" id="kpi-cumplimiento">—</div>
+        <div class="met-kpi-lbl">Cumplimiento promedio</div>
+        <div class="met-kpi-delta" id="kpi-cumplimiento-delta"></div>
+      </div>
+      <div class="met-kpi">
+        <div class="met-kpi-val" id="kpi-arrastres">—</div>
+        <div class="met-kpi-lbl">Arrastres promedio / sprint</div>
+        <div class="met-kpi-delta" id="kpi-arrastres-delta"></div>
+      </div>
+      <div class="met-kpi">
+        <div class="met-kpi-val" id="kpi-sprints">—</div>
+        <div class="met-kpi-lbl">Sprints registrados</div>
+        <div class="met-kpi-delta" id="kpi-sprints-delta"></div>
+      </div>
+    </div>
+
+    <!-- Selector de rango -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span style="font-size:11px;color:var(--gris-500)">Rango:</span>
+      <div class="range-btns">
+        <button class="range-btn active" id="range-4"  onclick="setRango(4,  this)">Últimas 4 sem</button>
+        <button class="range-btn"        id="range-8"  onclick="setRango(8,  this)">Últimas 8 sem</button>
+        <button class="range-btn"        id="range-12" onclick="setRango(12, this)">Últimas 12 sem</button>
+        <button class="range-btn"        id="range-0"  onclick="setRango(0,  this)">Todo</button>
+      </div>
+      <button class="btn-ghost" style="margin-left:auto;font-size:11px" onclick="exportarCSV()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar CSV
+      </button>
+    </div>
+
+    <!-- Fila 1: Velocity + Cumplimiento -->
+    <div class="met-layout">
+      <div class="met-card">
+        <div class="met-card-header">
+          <span class="met-card-title">Velocity por sprint</span>
+          <span class="met-card-sub" id="velocity-sub"></span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-velocity"></canvas>
+        </div>
+      </div>
+      <div class="met-card">
+        <div class="met-card-header">
+          <span class="met-card-title">Cumplimiento semanal (%)</span>
+          <span class="met-card-sub" id="cumplimiento-sub"></span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-cumplimiento"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fila 2: Pareto vs Demás + Deuda acumulada -->
+    <div class="met-layout">
+      <div class="met-card">
+        <div class="met-card-header">
+          <span class="met-card-title">SP comprometidos: Pareto vs Demás clientes</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-pareto"></canvas>
+        </div>
+      </div>
+      <div class="met-card">
+        <div class="met-card-header">
+          <span class="met-card-title">Deuda arrastrada por sprint</span>
+          <span class="met-card-sub" id="deuda-sub"></span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-deuda"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fila 3: Historial de sprints (tabla) -->
+    <div class="met-card" style="margin-bottom:14px">
+      <div class="met-card-header">
+        <span class="met-card-title">Historial de sprints</span>
+        <span class="met-card-sub" id="hist-sub"></span>
+      </div>
+      <div class="hist-wrap">
+        <table class="hist-table">
+          <thead>
+            <tr>
+              <th>Sprint</th>
+              <th>Fecha</th>
+              <th style="text-align:center">HU</th>
+              <th style="text-align:center">SP comprometidos</th>
+              <th style="text-align:center">SP completados</th>
+              <th>Cumplimiento</th>
+              <th style="text-align:center">Arrastres</th>
+              <th style="text-align:center">Pareto %</th>
+            </tr>
+          </thead>
+          <tbody id="hist-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Fila 4: Tendencia velocity + Cumplimiento mensual -->
+    <div class="met-layout">
+      <div class="met-card">
+        <div class="met-card-header">
+          <span class="met-card-title">Tendencia de velocity</span>
+          <span class="met-card-sub" id="tendencia-sub"></span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart-tendencia"></canvas>
+        </div>
+      </div>
+      <div class="met-card">
+        <div class="met-card-header">
+          <span class="met-card-title">Cumplimiento mensual</span>
+        </div>
+        <div id="mensual-content"></div>
+      </div>
+    </div>
+
+    <!-- Estado vacío -->
+    <div id="met-empty" style="display:none">
+      <div class="empty-state" style="padding:60px">
+        <div style="font-size:32px;margin-bottom:12px">📊</div>
+        <div style="font-size:14px;font-weight:500;color:var(--gris-700);margin-bottom:6px">Sin historial de sprints</div>
+        <div>Confirma y cierra tu primer sprint en la pestaña Seguimiento para comenzar a ver métricas.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       TAB: CONFIGURACIÓN
+  ════════════════════════════════════════════════════ -->
+  <div class="tab-panel" id="tab-configuracion">
+
+    <div class="config-section">
+      <div class="config-section-title">Conexión con Jira</div>
+      <div class="config-row">
+        <div class="config-field" style="min-width:240px">
+          <label>URL de Jira</label>
+          <input type="text" id="cfg-url" placeholder="https://coxti.atlassian.net">
+        </div>
+        <div class="config-field" style="min-width:200px">
+          <label>Email</label>
+          <input type="email" id="cfg-email" placeholder="usuario@empresa.com">
+        </div>
+        <div class="config-field" style="min-width:200px">
+          <label>API Token</label>
+          <input type="password" id="cfg-token" placeholder="••••••••••••••••">
+        </div>
+        <div class="config-field" style="min-width:100px">
+          <label>Board ID</label>
+          <input type="number" id="cfg-board" placeholder="1">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-primary" onclick="guardarConfig()">Guardar conexión</button>
+        <button class="btn-ghost" onclick="probarConexion()">Probar conexión (diagnóstico)</button>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Proyectos Pareto</div>
+      <p style="font-size:12px;color:var(--gris-500);margin-bottom:12px">
+        Los proyectos Pareto reciben prioridad en el planning y se destacan visualmente.
+        Escribe uno por línea, usando el nombre exacto del cliente en Jira.
+      </p>
+      <textarea id="cfg-pareto" rows="6"
+        style="width:100%;padding:8px 10px;border-radius:var(--r);border:1px solid var(--gris-300);font-size:12px;font-family:monospace;resize:vertical"
+        placeholder="Somos&#10;Yamaha&#10;Comfama&#10;Filiales&#10;Portal&#10;Haceb"></textarea>
+      <div style="margin-top:8px">
+        <button class="btn-primary" onclick="guardarPareto()">Guardar Pareto</button>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Capacidad por defecto</div>
+      <div class="config-row">
+        <div class="config-field">
+          <label>SP disponibles por sprint</label>
+          <input type="number" id="cfg-spdev" placeholder="30">
+        </div>
+        <div class="config-field">
+          <label>Umbral deuda (días)</label>
+          <input type="number" id="cfg-umbral" placeholder="7">
+        </div>
+      </div>
+      <button class="btn-primary" style="margin-top:8px" onclick="guardarCapacidad()">Guardar capacidad</button>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Datos locales</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-ghost" onclick="exportarDatos()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar histórico JSON
+        </button>
+        <button class="btn-ghost" onclick="document.getElementById('import-file').click()">
+          Importar JSON
+        </button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importarDatos(event)">
+        <button class="btn-ghost" style="margin-left:auto" onclick="limpiarDatos()">
+          Borrar datos locales
+        </button>
+      </div>
+      <div id="storage-info" style="font-size:11px;color:var(--gris-500);margin-top:10px"></div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- Modal confirmar sprint -->
+<div class="modal-overlay" id="modal-sprint">
+  <div class="modal">
+    <div class="modal-title">Confirmar planning de sprint</div>
+    <div id="modal-sprint-content" style="font-size:13px;color:var(--gris-700)"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="cerrarModal('modal-sprint')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarSprint()">Confirmar y guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal cierre de sprint -->
+<div class="modal-overlay" id="modal-cierre">
+  <div class="modal" style="width:560px">
+    <div class="modal-title">Cerrar sprint</div>
+    <div id="modal-cierre-content" style="font-size:13px;color:var(--gris-700)"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="cerrarModal('modal-cierre')">Cancelar</button>
+      <button class="btn-danger" onclick="ejecutarCierreSprint()">Cerrar sprint y guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ESTADO GLOBAL
+═══════════════════════════════════════════════════════════ */
+let CFG = {};
+let ISSUES = [];
+let SPRINT_ACTIVO = null;
+let SPRINT_SELECCION = { pareto: [], demas: [] };
+let DRAGGING_ID = null;
+let FILTRO_ACTIVO = 'todos';
+
+/* Fase 2 state — declared here so DOMContentLoaded can safely reference */
+let SEG_FILTRO = 'todos';
+let SEG_COMPLETADAS = {};
+let AUTO_REFRESH_ID = null;
+const DURACION_SPRINT_DIAS = 7;
+
+/* Fase 3 state */
+let MET_RANGO = 4;
+
+const STORAGE_KEYS = {
+  config:    'oc_config',
+  sprint:    'oc_sprint_activo',
+  seleccion: 'oc_sprint_seleccion',
+  historial: 'oc_historial_sprints',
+  prioridad: 'oc_prioridad_proyectos',
+  capacidad: 'oc_capacidad',
+};
+
+/* ═══════════════════════════════════════════════════════════
+   INICIO
+═══════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Bootstrap: si no hay config guardada, pre-cargar las credenciales de OnCredit
+  // (editar aquí solo la primera vez; después viven en localStorage)
+  const yaConfigurado = localStorage.getItem(STORAGE_KEYS.config);
+  if (!yaConfigurado) {
+    const defaultCfg = {
+      baseUrl:  'https://coxti.atlassian.net',
+      email:    'jonnatan.torres@oncredit.com.co',
+      token:    '',   // <-- pega aquí el nuevo token después de regenerarlo
+      boardId:  '1',
+      spDev: 30, spRef: 8, umbralDeuda: 7,
+      proyectosPareto: ['Somos','Yamaha','Comfama','Filiales','Portal','Haceb'],
+      estadosExcluir:  ['Done','Disponible para pruebas cliente','Deploy Ready UAT','Cerrado','Cancelado'],
+      estadosDOR:      ['DOR','Definition of Ready','Listo para desarrollo','QA Ready'],
+      estadosUAT:      ['UAT','En pruebas cliente','QA','Testing','En pruebas'],
+      estadosAnalisis: ['Análisis','En análisis','Refinamiento','En refinamiento','Backlog'],
+      estadosBloqueados: ['Bloqueado','Blocked','Impedido'],
+    };
+    localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(defaultCfg));
+  }
+
+  cargarConfig();
+  cargarSeleccionLocal();
+  const savedComp = localStorage.getItem('oc_seg_completadas');
+  if (savedComp) SEG_COMPLETADAS = JSON.parse(savedComp);
+  actualizarInfoStorage();
+  document.getElementById('resumen-fecha').textContent = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
+  const sem = new Date();
+  document.getElementById('cap-semana').textContent =
+    `semana del ${sem.toLocaleDateString('es-CO', { day:'2-digit', month:'short' })}`;
+  recalcCapacidad();
+  renderResumenTabla();
+  mostrarAlerta('Configura la conexión con Jira en la pestaña Configuración, luego haz clic en Sincronizar.', 'info', false);
+  iniciarAutoRefresh();
+});
+
+/* ═══════════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════════ */
+function cargarConfig() {
+  const saved = localStorage.getItem(STORAGE_KEYS.config);
+  CFG = saved ? JSON.parse(saved) : {
+    baseUrl: 'https://coxti.atlassian.net',
+    email: '',
+    token: '',
+    boardId: '1',
+    spDev: 30, spRef: 8,
+    umbralDeuda: 7,
+    proyectosPareto: ['Somos','Yamaha','Comfama','Filiales','Portal','Haceb'],
+    estadosExcluir: ['Done','Disponible para pruebas cliente','Deploy Ready UAT','Cerrado','Cancelado'],
+    estadosDOR: ['DOR','Definition of Ready','Listo para desarrollo','QA Ready'],
+    estadosUAT: ['UAT','En pruebas cliente','QA','Testing','En pruebas'],
+    estadosAnalisis: ['Análisis','En análisis','Refinamiento','En refinamiento','Backlog'],
+    estadosBloqueados: ['Bloqueado','Blocked','Impedido'],
+  };
+  // Cargar en formularios
+  document.getElementById('cfg-url').value    = CFG.baseUrl   || '';
+  document.getElementById('cfg-email').value  = CFG.email     || '';
+  document.getElementById('cfg-token').value  = CFG.token     || '';
+  document.getElementById('cfg-board').value  = CFG.boardId   || '1';
+  document.getElementById('cfg-pareto').value = (CFG.proyectosPareto || []).join('\n');
+  document.getElementById('cfg-spdev').value  = CFG.spDev     || 30;
+  document.getElementById('cfg-umbral').value = CFG.umbralDeuda || 7;
+  document.getElementById('cap-dev').value    = CFG.spDev     || 30;
+  document.getElementById('cap-ref').value    = CFG.spRef     || 8;
+}
+
+function guardarConfig() {
+  CFG.baseUrl = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+  CFG.email   = document.getElementById('cfg-email').value.trim();
+  CFG.token   = document.getElementById('cfg-token').value.trim();
+  CFG.boardId = document.getElementById('cfg-board').value.trim();
+  localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(CFG));
+  toast('Configuración guardada', 'success');
+}
+
+function guardarPareto() {
+  CFG.proyectosPareto = document.getElementById('cfg-pareto').value
+    .split('\n').map(s => s.trim()).filter(Boolean);
+  localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(CFG));
+  toast('Lista Pareto actualizada', 'success');
+}
+
+function guardarCapacidad() {
+  CFG.spDev = +document.getElementById('cfg-spdev').value;
+  CFG.umbralDeuda = +document.getElementById('cfg-umbral').value;
+  document.getElementById('cap-dev').value = CFG.spDev;
+  localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(CFG));
+  recalcCapacidad();
+  toast('Capacidad por defecto guardada', 'success');
+}
+
+async function probarConexion() {
+  guardarConfig();
+  if (!CFG.email || !CFG.token) {
+    mostrarResultadoConexion('error', 'Completa email y API token antes de probar.');
+    return;
+  }
+
+  mostrarResultadoConexion('info', 'Probando… paso 1 de 3: autenticación');
+
+  const pasos = [];
+
+  // Paso 1: autenticación básica
+  try {
+    const r = await jiraFetch('/rest/api/3/myself');
+    pasos.push({ ok: true, label: 'Autenticación', detalle: `Conectado como ${r.displayName} (${r.emailAddress})` });
+  } catch(e) {
+    pasos.push({ ok: false, label: 'Autenticación', detalle: e.message });
+    mostrarPasos(pasos, true);
+    return;
+  }
+
+  // Paso 2: acceso a proyectos
+  mostrarResultadoConexion('info', 'Probando… paso 2 de 3: acceso a proyectos');
+  try {
+    const r = await jiraFetch('/rest/api/3/project/search', { maxResults: 5 });
+    const proyV2 = (r.values || []).filter(p => p.key?.includes('V2') || p.name?.includes('V2'));
+    pasos.push({ ok: true, label: 'Proyectos', detalle: `${r.total} proyectos accesibles · ${proyV2.length} con "V2" encontrados: ${proyV2.map(p=>p.key).join(', ') || 'ninguno'}` });
+  } catch(e) {
+    pasos.push({ ok: false, label: 'Proyectos', detalle: e.message });
+  }
+
+  // Paso 3: JQL de issues
+  mostrarResultadoConexion('info', 'Probando… paso 3 de 3: consulta de issues');
+  try {
+    const jql = `project in projectsWhereUserHasPermission("Browse Projects") ORDER BY updated DESC`;
+    const r = await jiraFetch('/rest/api/3/search', { jql, maxResults: 1, fields: 'summary,project' });
+    const total = r.total || 0;
+    const ejemplo = r.issues?.[0];
+    const proyKey = ejemplo?.fields?.project?.key || '';
+    const esV2 = proyKey.includes('V2');
+    pasos.push({
+      ok: true,
+      label: 'Issues',
+      detalle: `${total} issues accesibles. Ejemplo: ${proyKey} — ${esV2 ? '✓ es V2' : '⚠ no contiene "V2" — revisa que los proyectos tengan ese texto en su clave'}`
+    });
+  } catch(e) {
+    pasos.push({ ok: false, label: 'Issues (JQL)', detalle: e.message });
+  }
+
+  mostrarPasos(pasos, false);
+}
+
+function mostrarPasos(pasos, fallo) {
+  const html = pasos.map(p => `
+    <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.06)">
+      <span style="font-size:14px;flex-shrink:0">${p.ok ? '✅' : '❌'}</span>
+      <div>
+        <strong>${p.label}</strong><br>
+        <span style="font-size:11px;opacity:.85">${p.detalle}</span>
+      </div>
+    </div>`).join('');
+  const resumen = fallo
+    ? '⚠ Conexión fallida — revisa los datos marcados en rojo'
+    : pasos.every(p => p.ok)
+      ? '✅ Todo correcto — haz clic en Sincronizar Jira'
+      : '⚠ Conexión parcial — revisa los pasos con ❌';
+  mostrarResultadoConexion(fallo ? 'error' : pasos.every(p=>p.ok) ? 'success' : 'warn',
+    `<strong>${resumen}</strong><div style="margin-top:8px">${html}</div>`);
+}
+
+function mostrarResultadoConexion(tipo, html) {
+  let el = document.getElementById('conn-result');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'conn-result';
+    const btn = document.querySelector('[onclick="probarConexion()"]');
+    btn?.parentElement?.appendChild(el);
+  }
+  const base = 'margin-top:10px;padding:10px 14px;border-radius:6px;font-size:12px;line-height:1.6;border-left:3px solid';
+  const styles = {
+    info:    `${base} var(--azul);background:var(--azul-light);color:var(--azul)`,
+    success: `${base} var(--verde);background:var(--verde-bg);color:var(--verde)`,
+    error:   `${base} var(--rojo);background:var(--rojo-light);color:var(--rojo-dark)`,
+    warn:    `${base} var(--amber);background:var(--amber-bg);color:var(--amber)`,
+  };
+  el.style.cssText = styles[tipo] || styles.info;
+  el.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   JIRA API
+═══════════════════════════════════════════════════════════ */
+async function jiraFetch(path, params = {}) {
+  const base = (CFG.baseUrl || 'https://coxti.atlassian.net').replace(/\/$/, '');
+  let url = `${base}${path}`;
+  if (Object.keys(params).length) {
+    url += '?' + new URLSearchParams(params).toString();
+  }
+  const headers = {
+    'Authorization': 'Basic ' + btoa(`${CFG.email}:${CFG.token}`),
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  };
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    let body = '';
+    try { body = await res.text(); } catch(_) {}
+    const msg = {
+      400: 'JQL inválido — verifica los estados configurados',
+      401: 'Credenciales incorrectas — verifica email y API token',
+      403: 'Sin permisos — verifica que el token tenga acceso a los proyectos',
+      404: 'URL de Jira incorrecta',
+      429: 'Demasiadas solicitudes — espera un momento',
+    }[res.status] || `Error ${res.status}`;
+    throw new Error(`${msg}. ${body.slice(0, 120)}`);
+  }
+  return res.json();
+}
+
+async function sincronizar() {
+  if (!CFG.email || !CFG.token) {
+    toast('Configura email y token en la pestaña Configuración', 'error');
+    showTab('configuracion', document.querySelector('.tab-btn:last-child'));
+    return;
+  }
+  const btn = document.getElementById('sync-btn');
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span> Sincronizando…';
+  document.getElementById('sync-status').textContent = '';
+
+  document.querySelectorAll('.alert[data-conn]').forEach(e => e.remove());
+
+  try {
+    await cargarIssues();
+    actualizarUI();
+    const ahora = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('sync-status').textContent = `Actualizado ${ahora}`;
+    toast(`${ISSUES.length} historias cargadas`, 'success');
+  } catch(e) {
+    console.error('[Jira sync]', e);
+
+    // Mostrar el error EXACTO — sin interpretarlo
+    const alertEl = document.createElement('div');
+    alertEl.className = 'alert alert-error';
+    alertEl.dataset.conn = '1';
+    alertEl.innerHTML = `
+      <div style="flex:1">
+        <strong>Error al conectar con Jira:</strong><br>
+        <code style="font-size:11px;word-break:break-all">${e.message}</code>
+      </div>
+      <button class="alert-close" onclick="this.parentElement.remove()">×</button>`;
+
+    const container = document.getElementById('alerts-container');
+    if (container) container.prepend(alertEl);
+
+    // Mostrar tab backlog para que se vea la alerta
+    const backlogTab = document.querySelector('[onclick*="backlog"]');
+    if (backlogTab && !document.getElementById('tab-backlog').classList.contains('active')) {
+      showTab('backlog', backlogTab);
+    }
+
+    cargarDemoData();
+    actualizarUI();
+    document.getElementById('sync-status').textContent = 'modo demo';
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg> Sincronizar Jira`;
+  }
+}
+
+async function cargarIssues() {
+  const excluir = (CFG.estadosExcluir || []).map(s => `"${s}"`).join(',');
+
+  // Construir JQL correctamente: condiciones separadas con AND, ORDER BY al final sin AND
+  const condiciones = [
+    `project in projectsWhereUserHasPermission("Browse Projects")`,
+    excluir ? `status NOT IN (${excluir})` : null,
+  ].filter(Boolean).join(' AND ');
+
+  const jql = `${condiciones} ORDER BY updated DESC`;
+
+  const data = await jiraFetch('/rest/api/3/search', {
+    jql,
+    maxResults: 200,
+    fields: 'summary,status,assignee,priority,customfield_10016,created,updated,labels,project,issuetype',
+  });
+
+  // Sprint activo (error silencioso si el board no existe)
+  try {
+    const sprintData = await jiraFetch(
+      `/rest/agile/1.0/board/${CFG.boardId}/sprint`, { state: 'active' }
+    );
+    SPRINT_ACTIVO = sprintData.values?.[0] || null;
+    if (SPRINT_ACTIVO) {
+      document.getElementById('sprint-label').textContent = `Sprint: ${SPRINT_ACTIVO.name}`;
+    }
+  } catch(_) {}
+
+  // Procesar y filtrar solo proyectos V2
+  const todas = (data.issues || []).map(i => procesarIssue(i));
+  ISSUES = todas.filter(i => esProyectoV2(i.proyectoKey, i.proyectoNombreRaw));
+
+  if (!ISSUES.length && todas.length > 0) {
+    toast(`${todas.length} historias encontradas, ninguna en proyectos V2. Verifica que la clave o nombre del proyecto contenga "V2".`, 'warn');
+  }
+}
+
+function procesarIssue(raw) {
+  const f = raw.fields;
+  const sp           = f.customfield_10016 || f.story_points || 0;
+  const estado       = f.status?.name || '';
+  const proyectoKey  = f.project?.key  || '';
+  const proyectoNombreRaw = f.project?.name || proyectoKey;
+  // Mostrar nombre limpio: quitar " - V2", " V2", "-V2", "V2" al final
+  const proyecto     = limpiarNombreProyecto(proyectoNombreRaw);
+  const fechaCreacion     = new Date(f.created);
+  const diasDesdeCreacion = Math.floor((Date.now() - fechaCreacion) / 86400000);
+  const clasificacion = clasificarEstado(estado);
+  const esPareto  = esProyectoPareto(proyecto);
+  const esDeuda   = clasificacion === 'deuda' || diasDesdeCreacion > (CFG.umbralDeuda || 7);
+  return {
+    key:               raw.key,
+    id:                raw.id,
+    resumen:           f.summary || '',
+    estado,
+    clasificacion:     esDeuda ? 'deuda' : clasificacion,
+    proyecto,            // nombre limpio para mostrar
+    proyectoKey,         // clave técnica (ej: CAJV2)
+    proyectoNombreRaw,   // nombre original con V2 (para filtrar)
+    sp:                parseFloat(sp) || 0,
+    asignado:          f.assignee?.displayName || '',
+    diasDesdeCreacion,
+    esPareto,
+    url: `${CFG.baseUrl}/browse/${raw.key}`,
+  };
+}
+
+// Devuelve true si el proyecto es V2 (por key o por nombre)
+function esProyectoV2(key, nombreRaw) {
+  const k = (key        || '').toUpperCase();
+  const n = (nombreRaw  || '').toUpperCase();
+  return k.includes('V2') || n.includes('V2');
+}
+
+// Elimina los sufijos V2 del nombre para mostrarlo limpio
+function limpiarNombreProyecto(nombre) {
+  return nombre
+    .replace(/\s*[-–]\s*V2\s*$/i, '')  // "Cajasan - V2"  → "Cajasan"
+    .replace(/\s+V2\s*$/i,        '')  // "Cajasan V2"    → "Cajasan"
+    .replace(/V2\s*$/i,           '')  // "CajasanV2"     → "Cajasan"
+    .trim();
+}
+
+function clasificarEstado(estado) {
+  const e = estado.toLowerCase();
+  if (matchEstados(e, CFG.estadosBloqueados)) return 'bloqueada';
+  if (matchEstados(e, CFG.estadosDOR))        return 'dor';
+  if (matchEstados(e, CFG.estadosUAT))        return 'uat';
+  if (matchEstados(e, CFG.estadosAnalisis))   return 'analisis';
+  if (matchEstados(e, CFG.estadosExcluir))    return 'excluida';
+  return 'deuda';
+}
+
+function matchEstados(estadoLower, lista) {
+  return (lista || []).some(s => estadoLower.includes(s.toLowerCase()));
+}
+
+function esProyectoPareto(nombre) {
+  return (CFG.proyectosPareto || []).some(p =>
+    nombre.toLowerCase().includes(p.toLowerCase())
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DEMO DATA (cuando no hay credenciales reales)
+═══════════════════════════════════════════════════════════ */
+function cargarDemoData() {
+  // Proyectos V2 — nombre limpio para UI, key real de Jira
+  const proyectos = [
+    { nombre: 'Yamaha',        key: 'YAMV2',  pareto: true  },
+    { nombre: 'Somos',         key: 'SOMV2',  pareto: true  },
+    { nombre: 'Comfama',       key: 'COMV2',  pareto: true  },
+    { nombre: 'Filiales',      key: 'FILV2',  pareto: true  },
+    { nombre: 'Portal',        key: 'PORV2',  pareto: true  },
+    { nombre: 'Haceb',         key: 'HACV2',  pareto: true  },
+    { nombre: 'Meyer',         key: 'MEYV2',  pareto: false },
+    { nombre: 'Cajasan',       key: 'CAJV2',  pareto: false },
+    { nombre: 'Multiactiva',   key: 'MULV2',  pareto: false },
+    { nombre: 'IGB',           key: 'IGBV2',  pareto: false },
+    { nombre: 'Comfamiliar',   key: 'CFHV2',  pareto: false },
+    { nombre: 'Comfenalco',    key: 'CFEV2',  pareto: false },
+    { nombre: 'Coinversiones', key: 'COIV2',  pareto: false },
+    { nombre: 'Creditodo',     key: 'CREV2',  pareto: false },
+    { nombre: 'Mutual',        key: 'MUTV2',  pareto: false },
+    { nombre: 'GET Solutions', key: 'GETV2',  pareto: false },
+  ];
+
+  const plantillas = {
+    dor:       'DOR',
+    deuda:     'En progreso',
+    bloqueada: 'Bloqueado',
+    uat:       'UAT',
+    analisis:  'En análisis',
+  };
+
+  const historiasFijas = [
+    { key:'YAMV2-840', proyecto:'Yamaha',      cl:'deuda',    sp:2,    dias:18, res:'Parametría de crédito — ajuste de condiciones comerciales' },
+    { key:'YAMV2-931', proyecto:'Yamaha',      cl:'dor',      sp:3,    dias:5,  res:'Módulo de garantías familia unida — validación documental' },
+    { key:'YAMV2-938', proyecto:'Yamaha',      cl:'dor',      sp:2.2,  dias:4,  res:'Estabilización backup entorno de producción' },
+    { key:'YAMV2-902', proyecto:'Yamaha',      cl:'uat',      sp:0,    dias:12, res:'Yamaha Prime — flujo de aprobación automática' },
+    { key:'SOMV2-219', proyecto:'Somos',       cl:'deuda',    sp:5,    dias:21, res:'Listas restrictivas — integración motor de decisión' },
+    { key:'SOMV2-220', proyecto:'Somos',       cl:'bloqueada',sp:3,    dias:14, res:'Módulo de pagos PSE — pendiente respuesta cliente' },
+    { key:'SOMV2-224', proyecto:'Somos',       cl:'dor',      sp:1.5,  dias:2,  res:'Ajuste de flujo de estudio de crédito' },
+    { key:'COMV2-939', proyecto:'Comfama',     cl:'deuda',    sp:4,    dias:16, res:'Radicación de crédito — paso 3 firma digital' },
+    { key:'COMV2-028', proyecto:'Comfama',     cl:'deuda',    sp:5,    dias:9,  res:'Generación de pagaré — integración proveedor firma' },
+    { key:'COMV2-043', proyecto:'Comfama',     cl:'dor',      sp:2,    dias:3,  res:'Ajuste validación de identidad codeudor' },
+    { key:'FILV2-123', proyecto:'Filiales',    cl:'deuda',    sp:1,    dias:11, res:'Estabilización producción ESSA, EDEQ y CENS' },
+    { key:'FILV2-124', proyecto:'Filiales',    cl:'dor',      sp:1,    dias:1,  res:'Migración de parametría CHEC a nueva versión' },
+    { key:'PORV2-207', proyecto:'Portal',      cl:'deuda',    sp:5,    dias:22, res:'Portal de autogestión — módulo de desembolso' },
+    { key:'PORV2-225', proyecto:'Portal',      cl:'analisis', sp:0,    dias:6,  res:'Nuevo flujo de vinculación — pendiente EM' },
+    { key:'HACV2-347', proyecto:'Haceb',       cl:'deuda',    sp:3.5,  dias:13, res:'Módulo de crédito hipotecario — simulador' },
+    { key:'HACV2-360', proyecto:'Haceb',       cl:'dor',      sp:0.7,  dias:3,  res:'Ajuste menor calculadora de cuota' },
+    { key:'MEYV2-6',   proyecto:'Meyer',       cl:'deuda',    sp:3,    dias:10, res:'Integración central de riesgo — flujo retry' },
+    { key:'MEYV2-16',  proyecto:'Meyer',       cl:'dor',      sp:3,    dias:2,  res:'Mejora UX formulario paso 2' },
+    { key:'CAJV2-24',  proyecto:'Cajasan',     cl:'dor',      sp:5,    dias:4,  res:'Módulo de libranza — validación empleador' },
+    { key:'CAJV2-14',  proyecto:'Cajasan',     cl:'deuda',    sp:2,    dias:15, res:'Corrección cálculo de descuento por nómina' },
+    { key:'CAJV2-11',  proyecto:'Cajasan',     cl:'bloqueada',sp:2,    dias:8,  res:'Integración core bancario — BLOQUEADO por API' },
+    { key:'MULV2-87',  proyecto:'Multiactiva', cl:'deuda',    sp:2,    dias:12, res:'Consumo integración consultar cliente' },
+    { key:'MULV2-103', proyecto:'Multiactiva', cl:'dor',      sp:3,    dias:3,  res:'Flujo de estudio multiproducto' },
+    { key:'IGBV2-63',  proyecto:'IGB',         cl:'deuda',    sp:3,    dias:17, res:'Motor de decisión — reglas de negocio PJ' },
+    { key:'IGBV2-77',  proyecto:'IGB',         cl:'dor',      sp:3,    dias:1,  res:'Validación de identidad OTP — flujo retry' },
+    { key:'MUTV2-166', proyecto:'Mutual',      cl:'dor',      sp:1.25, dias:2,  res:'Ajuste simulador de crédito' },
+    { key:'CFHV2-99',  proyecto:'Comfamiliar', cl:'dor',      sp:3,    dias:4,  res:'Formulario deudor — campos condicionales' },
+    { key:'CFEV2-24',  proyecto:'Comfenalco',  cl:'dor',      sp:4,    dias:3,  res:'Módulo de libranza — nueva etapa validación' },
+    { key:'COIV2-269', proyecto:'Coinversiones',cl:'deuda',   sp:2,    dias:9,  res:'Consulta score crediticio — manejo de timeout' },
+    { key:'CREV2-419', proyecto:'Creditodo',   cl:'deuda',    sp:0,    dias:14, res:'Módulo retail — integración POS' },
+    { key:'GETV2-22',  proyecto:'GET Solutions',cl:'uat',     sp:1.5,  dias:7,  res:'Ajuste de reportería — filtros de fecha' },
+  ];
+
+  ISSUES = historiasFijas.map((h, idx) => {
+    const proy = proyectos.find(p => p.nombre === h.proyecto);
+    return {
+      key:               h.key,
+      id:                String(idx + 1),
+      resumen:           h.res,
+      estado:            plantillas[h.cl],
+      clasificacion:     h.cl,
+      proyecto:          h.proyecto,           // nombre limpio
+      proyectoKey:       proy?.key || '',       // clave V2
+      proyectoNombreRaw: `${h.proyecto} - V2`, // nombre raw como vendría de Jira
+      sp:                h.sp,
+      asignado:          ['Adalberto', 'PO2', 'PO3'][idx % 3],
+      diasDesdeCreacion: h.dias,
+      esPareto:          proy?.pareto || false,
+      url:               `https://coxti.atlassian.net/browse/${h.key}`,
+    };
+  });
+
+  document.getElementById('sprint-label').textContent = 'Demo — Solo proyectos V2';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER UI
+═══════════════════════════════════════════════════════════ */
+function actualizarUI() {
+  document.getElementById('alerts-container').innerHTML = '';
+  renderStats();
+  renderBacklog();
+  renderPlanningBoard();
+  renderSeguimiento();
+  actualizarInfoStorage();
+}
+
+function renderStats() {
+  const grupos = agruparPorClasificacion();
+  ['dor','deuda','analisis','uat','bloqueada'].forEach(cl => {
+    const issues = grupos[cl] || [];
+    const sp = issues.reduce((a,i) => a + i.sp, 0);
+    const el = document.getElementById('stat-' + cl);
+    const elSp = document.getElementById('stat-' + cl + '-sp');
+    if (el) el.textContent = issues.length;
+    if (elSp) elSp.textContent = sp.toFixed(1) + ' SP';
+  });
+  document.getElementById('badge-backlog').textContent =
+    ISSUES.filter(i => i.clasificacion !== 'excluida').length;
+
+  // Alertas automáticas
+  const deuda = grupos['deuda'] || [];
+  const bloq  = grupos['bloqueada'] || [];
+  if (deuda.length > 5)
+    mostrarAlerta(`${deuda.length} historias en deuda — considera priorizarlas esta semana.`, 'warn');
+  if (bloq.length > 0)
+    mostrarAlerta(`${bloq.length} historia${bloq.length > 1 ? 's' : ''} bloqueada${bloq.length > 1 ? 's' : ''} sin resolver.`, 'error');
+}
+
+function renderBacklog() {
+  const secciones = [
+    { key:'dor',      titulo:'Listas para tomar (DOR)', color:'var(--azul)' },
+    { key:'deuda',    titulo:'En deuda (> ' + (CFG.umbralDeuda||7) + ' días)', color:'var(--amber)' },
+    { key:'bloqueada',titulo:'Bloqueadas',               color:'var(--rojo)' },
+    { key:'uat',      titulo:'En UAT',                   color:'var(--verde)' },
+    { key:'analisis', titulo:'En análisis',              color:'var(--gris-500)' },
+  ];
+  const grupos = agruparPorClasificacion();
+  const container = document.getElementById('backlog-sections');
+  container.innerHTML = '';
+
+  secciones.forEach(sec => {
+    const issues = grupos[sec.key] || [];
+    if (!issues.length) return;
+    const pareto = issues.filter(i => i.esPareto);
+    const demas  = issues.filter(i => !i.esPareto);
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-bottom:20px';
+
+    let cardsHTML = '';
+
+    if (pareto.length && demas.length) {
+      cardsHTML = `
+        <div class="col-subgroup">
+          <span class="col-subgroup-label pareto">Pareto · ${pareto.length} HU · ${pareto.reduce((a,i)=>a+i.sp,0).toFixed(1)} SP</span>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px">
+            ${pareto.map(i => renderHuCard(i, true)).join('')}
+          </div>
+        </div>
+        <div class="col-subgroup-sep"></div>
+        <div class="col-subgroup">
+          <span class="col-subgroup-label demas">Demás clientes · ${demas.length} HU · ${demas.reduce((a,i)=>a+i.sp,0).toFixed(1)} SP</span>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px">
+            ${demas.map(i => renderHuCard(i, true)).join('')}
+          </div>
+        </div>`;
+    } else {
+      cardsHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px">
+        ${issues.map(i => renderHuCard(i, true)).join('')}
+      </div>`;
+    }
+
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="width:3px;height:16px;border-radius:2px;background:${sec.color}"></div>
+        <span style="font-size:12px;font-weight:600;color:var(--gris-700)">${sec.titulo}</span>
+        <span style="font-size:11px;color:var(--gris-500)">${issues.length} HU · ${issues.reduce((a,i)=>a+i.sp,0).toFixed(1)} SP</span>
+      </div>
+      ${cardsHTML}`;
+    container.appendChild(wrap);
+  });
+
+  if (!container.children.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:40px"><div>Sincroniza Jira para ver el backlog</div></div>';
+  }
+}
+
+function renderPlanningBoard() {
+  const grupos = agruparPorClasificacion();
+  const cols = [
+    { id:'col-dor',   key:'dor',       cnt:'cnt-dor',   sp:'sp-dor'   },
+    { id:'col-deuda', key:'deuda',      cnt:'cnt-deuda', sp:'sp-deuda' },
+    { id:'col-bloq',  key:'bloqueada',  cnt:'cnt-bloq',  sp:'sp-bloq'  },
+  ];
+  cols.forEach(col => {
+    let issues = grupos[col.key] || [];
+    // Aplicar filtro activo
+    if (FILTRO_ACTIVO === 'pareto') issues = issues.filter(i => i.esPareto);
+    if (FILTRO_ACTIVO === 'demas')  issues = issues.filter(i => !i.esPareto);
+
+    const el = document.getElementById(col.id);
+    if (!el) return;
+    document.getElementById(col.cnt).textContent = issues.length;
+    document.getElementById(col.sp).textContent  = issues.reduce((a,i)=>a+i.sp,0).toFixed(1) + ' SP';
+
+    if (!issues.length) {
+      el.innerHTML = '<div class="empty-state"><div>Sin historias en este estado</div></div>';
+      return;
+    }
+
+    const pareto = issues.filter(i => i.esPareto);
+    const demas  = issues.filter(i => !i.esPareto);
+
+    if (pareto.length && demas.length) {
+      el.innerHTML = `
+        <div class="col-subgroup">
+          <span class="col-subgroup-label pareto">Pareto <span style="font-weight:400;opacity:.8">${pareto.length} · ${pareto.reduce((a,i)=>a+i.sp,0).toFixed(1)} SP</span></span>
+          ${pareto.map(i => renderHuCard(i, false)).join('')}
+        </div>
+        <div class="col-subgroup-sep"></div>
+        <div class="col-subgroup">
+          <span class="col-subgroup-label demas">Demás <span style="font-weight:400;opacity:.8">${demas.length} · ${demas.reduce((a,i)=>a+i.sp,0).toFixed(1)} SP</span></span>
+          ${demas.map(i => renderHuCard(i, false)).join('')}
+        </div>`;
+    } else {
+      el.innerHTML = issues.map(i => renderHuCard(i, false)).join('');
+    }
+  });
+  renderSprintColumns();
+  recalcCapacidad();
+  renderResumenTabla();
+}
+
+function renderSprintColumns() {
+  ['pareto','demas'].forEach(tipo => {
+    const items = SPRINT_SELECCION[tipo] || [];
+    const col = document.getElementById(`sprint-${tipo}`);
+    if (!col) return;
+    col.innerHTML = items.length
+      ? items.map(i => renderHuCard(i, false)).join('')
+      : `<div class="empty-state" style="padding:12px 0;font-size:11px">Arrastra historias ${tipo === 'pareto' ? 'Pareto' : 'de demás clientes'}</div>`;
+  });
+  const total = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])]
+    .reduce((a,i) => a + i.sp, 0);
+  document.getElementById('sp-sprint-total').textContent = total.toFixed(1) + ' SP';
+  document.getElementById('badge-seg').textContent =
+    (SPRINT_SELECCION.pareto?.length || 0) + (SPRINT_SELECCION.demas?.length || 0);
+}
+
+function renderHuCard(issue, sinDrag) {
+  const diasLabel = issue.diasDesdeCreacion > 14
+    ? `<span class="hu-dias alert">${issue.diasDesdeCreacion}d</span>`
+    : issue.diasDesdeCreacion > 7
+    ? `<span class="hu-dias warn">${issue.diasDesdeCreacion}d</span>`
+    : `<span class="hu-dias">${issue.diasDesdeCreacion}d</span>`;
+  const badge = {
+    dor:      '<span class="hu-badge badge-dor">DOR</span>',
+    deuda:    '<span class="hu-badge badge-deuda">Deuda</span>',
+    bloqueada:'<span class="hu-badge badge-bloq">Bloqueada</span>',
+    uat:      '<span class="hu-badge badge-uat">UAT</span>',
+    analisis: '<span class="hu-badge badge-analisis">Análisis</span>',
+  }[issue.clasificacion] || '';
+  const claseCard = `hu-card ${issue.clasificacion}`;
+  const drag = sinDrag ? '' : `draggable="true" ondragstart="onDragStart(event,'${issue.key}')" ondragend="onDragEnd(event)"`;
+  const claseProyecto = `hu-project ${issue.esPareto ? 'pareto' : ''}`;
+  return `
+    <div class="${claseCard}" id="hu-${issue.key}" ${drag}>
+      <div class="hu-top">
+        <a href="${issue.url}" target="_blank" class="hu-key">${issue.key}</a>
+        ${badge}
+        <span class="hu-sp">${issue.sp > 0 ? issue.sp + ' SP' : '? SP'}</span>
+      </div>
+      <div class="hu-title">${issue.resumen}</div>
+      <div class="hu-bottom">
+        <span class="${claseProyecto}">${issue.proyecto}</span>
+        ${diasLabel}
+      </div>
+    </div>`;
+}
+
+function renderSeguimiento() {
+  const todas = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  const total   = todas.reduce((a,i) => a + i.sp, 0);
+  const completas = todas.filter(i => matchEstados(i.estado.toLowerCase(), CFG.estadosExcluir));
+  const spComp  = completas.reduce((a,i) => a + i.sp, 0);
+  const pct = total > 0 ? Math.round(spComp / total * 100) : 0;
+
+  document.getElementById('seg-comprometidos').textContent = total.toFixed(1);
+  document.getElementById('seg-completados').textContent   = spComp.toFixed(1);
+  document.getElementById('seg-pct').textContent = pct + '%';
+
+  // Semáforo por proyecto
+  const proyectos = [...new Set(todas.map(i => i.proyecto))];
+  const semGrid = document.getElementById('semaforo-grid');
+  if (!proyectos.length) {
+    semGrid.innerHTML = '<div style="text-align:center;color:var(--gris-500);font-size:12px;padding:12px">Selecciona historias en Planning</div>';
+  } else {
+    semGrid.innerHTML = proyectos.map(p => {
+      const pIssues = todas.filter(i => i.proyecto === p);
+      const bloq = pIssues.filter(i => i.clasificacion === 'bloqueada').length;
+      const dot = bloq > 0 ? 'dot-red' : pIssues.some(i => i.diasDesdeCreacion > 14) ? 'dot-amber' : 'dot-green';
+      const spP = pIssues.reduce((a,i) => a + i.sp, 0);
+      return `<div class="semaforo-item">
+        <div class="semaforo-dot ${dot}"></div>
+        <span class="semaforo-name">${p}</span>
+        <span class="semaforo-sp">${spP.toFixed(1)} SP</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Lista de historias del sprint
+  const lista = document.getElementById('sprint-seguimiento-list');
+  if (!todas.length) {
+    lista.innerHTML = '<div class="empty-state">No hay historias en el sprint. Ve a Planning para seleccionar.</div>';
+  } else {
+    lista.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--gris-100)">
+            <th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--gris-500);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Clave</th>
+            <th style="padding:7px 10px;text-align:left">Historia</th>
+            <th style="padding:7px 10px;text-align:left">Proyecto</th>
+            <th style="padding:7px 10px;text-align:center">SP</th>
+            <th style="padding:7px 10px;text-align:left">Estado</th>
+            <th style="padding:7px 10px;text-align:center">Días</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${todas.map(i => `
+            <tr style="border-bottom:1px solid var(--gris-100)">
+              <td style="padding:7px 10px"><a href="${i.url}" target="_blank" style="color:var(--azul);font-family:monospace;font-size:11px;font-weight:600;text-decoration:none">${i.key}</a></td>
+              <td style="padding:7px 10px;color:var(--gris-700);max-width:320px">${i.resumen}</td>
+              <td style="padding:7px 10px"><span class="hu-project ${i.esPareto?'pareto':''}">${i.proyecto}</span></td>
+              <td style="padding:7px 10px;text-align:center;font-weight:600;color:var(--azul)">${i.sp || '?'}</td>
+              <td style="padding:7px 10px">${getBadgeHTML(i.clasificacion)}</td>
+              <td style="padding:7px 10px;text-align:center;font-size:11px;color:${i.diasDesdeCreacion>14?'var(--rojo)':i.diasDesdeCreacion>7?'var(--amber)':'var(--gris-500)'}">${i.diasDesdeCreacion}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+}
+
+function getBadgeHTML(cl) {
+  const m = {
+    dor:      ['badge-dor','DOR'],
+    deuda:    ['badge-deuda','Deuda'],
+    bloqueada:['badge-bloq','Bloqueada'],
+    uat:      ['badge-uat','UAT'],
+    analisis: ['badge-analisis','Análisis'],
+  };
+  const [cls, label] = m[cl] || ['badge-analisis', cl];
+  return `<span class="hu-badge ${cls}">${label}</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DRAG & DROP
+═══════════════════════════════════════════════════════════ */
+function onDragStart(e, key) {
+  DRAGGING_ID = key;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const el = document.getElementById('hu-' + key);
+    if (el) el.classList.add('dragging');
+  }, 0);
+}
+
+function onDragEnd(e) {
+  document.querySelectorAll('.hu-card.dragging').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.board-col-body.drag-over').forEach(el => el.classList.remove('drag-over'));
+  DRAGGING_ID = null;
+}
+
+function onDragOver(e, zone) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function onDrop(e, destino) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!DRAGGING_ID) return;
+
+  // Buscar la issue en todas las fuentes
+  const issue = findIssue(DRAGGING_ID);
+  if (!issue) return;
+
+  // Quitar de sprint si estaba ahí
+  SPRINT_SELECCION.pareto = (SPRINT_SELECCION.pareto||[]).filter(i => i.key !== DRAGGING_ID);
+  SPRINT_SELECCION.demas  = (SPRINT_SELECCION.demas||[]).filter(i => i.key !== DRAGGING_ID);
+
+  if (destino === 'sprint-pareto') {
+    const nuevaIssue = { ...issue, esPareto: true };
+    SPRINT_SELECCION.pareto.push(nuevaIssue);
+  } else if (destino === 'sprint-demas') {
+    const nuevaIssue = { ...issue, esPareto: false };
+    SPRINT_SELECCION.demas.push(nuevaIssue);
+  }
+  // Si se droppea de vuelta a columnas origen, simplemente ya la sacamos del sprint
+
+  guardarSeleccionLocal();
+  renderSprintColumns();
+  recalcCapacidad();
+  renderResumenTabla();
+  renderSeguimiento();
+}
+
+function findIssue(key) {
+  let found = ISSUES.find(i => i.key === key);
+  if (!found) found = SPRINT_SELECCION.pareto?.find(i => i.key === key);
+  if (!found) found = SPRINT_SELECCION.demas?.find(i => i.key === key);
+  return found;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CAPACIDAD
+═══════════════════════════════════════════════════════════ */
+function recalcCapacidad() {
+  const capDev = +document.getElementById('cap-dev').value || 30;
+  const todas  = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  const spSel  = todas.reduce((a,i) => a + i.sp, 0);
+  const pct    = Math.min((spSel / capDev) * 100, 100);
+
+  const barDev = document.getElementById('bar-dev');
+  const colorClass = spSel > capDev * 1.15 ? 'over' : spSel > capDev * 0.85 ? 'warn' : '';
+  if (barDev) { barDev.style.width = pct + '%'; barDev.className = 'cap-bar-fill ' + colorClass; }
+
+  const numsEl = document.getElementById('nums-dev');
+  if (numsEl) numsEl.textContent = `${spSel.toFixed(1)} / ${capDev} SP`;
+
+  // Alerta sobre-compromiso
+  if (spSel > capDev * 1.15) {
+    mostrarAlerta(`Sobre-compromiso: ${spSel.toFixed(1)} SP seleccionados vs ${capDev} SP disponibles (${Math.round(spSel/capDev*100)}%)`, 'error', true);
+  } else if (spSel > capDev) {
+    mostrarAlerta(`Capacidad al límite: ${spSel.toFixed(1)} / ${capDev} SP`, 'warn', true);
+  }
+
+  localStorage.setItem(STORAGE_KEYS.capacidad, JSON.stringify({ dev: capDev }));
+}
+
+function resetCapacidad() {
+  document.getElementById('cap-dev').value = CFG.spDev || 30;
+  document.getElementById('cap-ref').value = CFG.spRef || 8;
+  recalcCapacidad();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESUMEN TABLA
+═══════════════════════════════════════════════════════════ */
+function renderResumenTabla() {
+  const tbody = document.getElementById('resumen-tbody');
+  const todas = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  if (!todas.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--gris-500)">Agrega historias al sprint para ver el resumen</td></tr>';
+    return;
+  }
+
+  const porProyecto = {};
+  todas.forEach(i => {
+    if (!porProyecto[i.proyecto]) {
+      porProyecto[i.proyecto] = { nombre: i.proyecto, esPareto: i.esPareto, items: [] };
+    }
+    porProyecto[i.proyecto].items.push(i);
+  });
+
+  const paretos = Object.values(porProyecto).filter(p => p.esPareto);
+  const demas   = Object.values(porProyecto).filter(p => !p.esPareto);
+
+  let html = '';
+  let totPSpDev = 0, totPHU = 0, totPSP = 0;
+  let totDSpDev = 0, totDHU = 0, totDSP = 0;
+
+  const renderProyecto = (p) => {
+    const deuda = p.items.filter(i => i.clasificacion === 'deuda');
+    const dor   = p.items.filter(i => i.clasificacion === 'dor');
+    const bloq  = p.items.filter(i => i.clasificacion === 'bloqueada');
+    const spD   = deuda.reduce((a,i) => a+i.sp, 0);
+    const spR   = dor.reduce((a,i) => a+i.sp, 0);
+    const spB   = bloq.reduce((a,i) => a+i.sp, 0);
+    const totalSP = p.items.reduce((a,i) => a+i.sp, 0);
+    return { deuda, dor, bloq, spD, spR, spB, totalSP, totalHU: p.items.length };
+  };
+
+  html += `<tr class="section-header"><td colspan="9">Pareto</td></tr>`;
+  paretos.forEach(p => {
+    const r = renderProyecto(p);
+    totPHU += r.totalHU; totPSP += r.totalSP;
+    html += `<tr class="pareto-section">
+      <td><strong>${p.nombre}</strong></td>
+      <td>${r.deuda.map(i=>`<code style="font-size:10px;color:var(--azul)">${i.key}</code>`).join(' ') || '—'}</td>
+      <td>${r.spD > 0 ? r.spD.toFixed(1) : '—'}</td>
+      <td>${r.dor.map(i=>`<code style="font-size:10px;color:var(--azul)">${i.key}</code>`).join(' ') || '—'}</td>
+      <td>${r.spR > 0 ? r.spR.toFixed(1) : '—'}</td>
+      <td>${r.bloq.map(i=>`<code style="font-size:10px;color:var(--rojo)">${i.key}</code>`).join(' ') || '—'}</td>
+      <td>${r.spB > 0 ? r.spB.toFixed(1) : '—'}</td>
+      <td><strong>${r.totalHU}</strong></td>
+      <td><strong>${r.totalSP.toFixed(1)}</strong></td>
+    </tr>`;
+  });
+
+  if (paretos.length) {
+    const pctP = Math.round(totPSP / (totPSP + demas.reduce((a,p)=>a+p.items.reduce((s,i)=>s+i.sp,0),0) || 1) * 100);
+    html += `<tr class="total-row">
+      <td>Total Pareto</td>
+      <td colspan="5"></td>
+      <td colspan="1">Peso: ${pctP}%</td>
+      <td>${totPHU}</td>
+      <td>${totPSP.toFixed(1)}</td>
+    </tr>`;
+  }
+
+  if (demas.length) {
+    html += `<tr class="section-header demas"><td colspan="9">Demás clientes</td></tr>`;
+    demas.forEach(p => {
+      const r = renderProyecto(p);
+      totDHU += r.totalHU; totDSP += r.totalSP;
+      html += `<tr class="demas-section">
+        <td><strong>${p.nombre}</strong></td>
+        <td>${r.deuda.map(i=>`<code style="font-size:10px;color:var(--azul)">${i.key}</code>`).join(' ') || '—'}</td>
+        <td>${r.spD > 0 ? r.spD.toFixed(1) : '—'}</td>
+        <td>${r.dor.map(i=>`<code style="font-size:10px;color:var(--azul)">${i.key}</code>`).join(' ') || '—'}</td>
+        <td>${r.spR > 0 ? r.spR.toFixed(1) : '—'}</td>
+        <td>${r.bloq.map(i=>`<code style="font-size:10px;color:var(--rojo)">${i.key}</code>`).join(' ') || '—'}</td>
+        <td>${r.spB > 0 ? r.spB.toFixed(1) : '—'}</td>
+        <td><strong>${r.totalHU}</strong></td>
+        <td><strong>${r.totalSP.toFixed(1)}</strong></td>
+      </tr>`;
+    });
+
+    if (demas.length) {
+      const pctD = Math.round(totDSP / ((totPSP + totDSP) || 1) * 100);
+      html += `<tr class="total-row">
+        <td>Total demás</td>
+        <td colspan="5"></td>
+        <td colspan="1">Peso: ${pctD}%</td>
+        <td>${totDHU}</td>
+        <td>${totDSP.toFixed(1)}</td>
+      </tr>`;
+    }
+  }
+
+  const grandTotalSP = totPSP + totDSP;
+  const avgSP = (totPHU + totDHU) > 0 ? grandTotalSP / (totPHU + totDHU) : 0;
+  html += `<tr class="total-row" style="background:var(--azul);color:#fff">
+    <td style="color:#fff">TOTAL SPRINT</td>
+    <td colspan="5" style="color:rgba(255,255,255,.6);font-size:11px">Promedio SP/HU: ${avgSP.toFixed(1)}</td>
+    <td colspan="1" style="color:rgba(255,255,255,.8)">Pareto ${Math.round(totPSP/grandTotalSP*100||0)}%</td>
+    <td style="color:#fff;font-size:14px">${totPHU + totDHU}</td>
+    <td style="color:#fff;font-size:14px">${grandTotalSP.toFixed(1)}</td>
+  </tr>`;
+
+  tbody.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GUARDAR / CONFIRMAR SPRINT
+═══════════════════════════════════════════════════════════ */
+function confirmarSprint() {
+  const todas = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  if (!todas.length) { toast('Agrega historias al sprint primero', 'error'); return; }
+  const totalSP = todas.reduce((a,i) => a + i.sp, 0);
+  const capDev = +document.getElementById('cap-dev').value;
+  document.getElementById('modal-sprint-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--azul-light);border-radius:var(--r);padding:12px">
+        <div style="font-size:11px;color:var(--azul);margin-bottom:4px">Total historias</div>
+        <div style="font-size:22px;font-weight:700;color:var(--azul)">${todas.length}</div>
+      </div>
+      <div style="background:${totalSP > capDev ? 'var(--rojo-light)' : 'var(--verde-bg)'};border-radius:var(--r);padding:12px">
+        <div style="font-size:11px;color:${totalSP > capDev ? 'var(--rojo)' : 'var(--verde)'};margin-bottom:4px">Story points</div>
+        <div style="font-size:22px;font-weight:700;color:${totalSP > capDev ? 'var(--rojo)' : 'var(--verde)'}">${totalSP.toFixed(1)} / ${capDev}</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--gris-500)">
+      Se guardará un snapshot de este sprint en el historial local. Los datos de Jira no se modifican.
+    </p>`;
+  document.getElementById('modal-sprint').classList.add('open');
+}
+
+function guardarSprint() {
+  const todas = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  const totalSP = todas.reduce((a,i) => a + i.sp, 0);
+  const capDev  = +document.getElementById('cap-dev').value;
+  const snap = {
+    fecha:       new Date().toISOString(),
+    sprint:      SPRINT_ACTIVO?.name || `Sprint ${new Date().toLocaleDateString('es-CO')}`,
+    spComprometidos: totalSP,
+    spCompletados:   0,
+    capacidadDev:    capDev,
+    issues:  todas.map(i => ({ key: i.key, proyecto: i.proyecto, sp: i.sp, clasificacion: i.clasificacion, esPareto: i.esPareto })),
+    pctPareto: Math.round((SPRINT_SELECCION.pareto||[]).reduce((a,i)=>a+i.sp,0) / totalSP * 100),
+    arrastres: (SPRINT_SELECCION.pareto||[]).filter(i=>i.clasificacion==='deuda').length +
+               (SPRINT_SELECCION.demas||[]).filter(i=>i.clasificacion==='deuda').length,
+  };
+  const historial = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]');
+  historial.push(snap);
+  localStorage.setItem(STORAGE_KEYS.historial, JSON.stringify(historial));
+  cerrarModal('modal-sprint');
+  toast('Sprint confirmado y guardado en historial', 'success');
+  actualizarInfoStorage();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PERSISTENCIA LOCAL
+═══════════════════════════════════════════════════════════ */
+function guardarSeleccionLocal() {
+  localStorage.setItem(STORAGE_KEYS.seleccion, JSON.stringify(SPRINT_SELECCION));
+}
+
+function cargarSeleccionLocal() {
+  const saved = localStorage.getItem(STORAGE_KEYS.seleccion);
+  if (saved) {
+    SPRINT_SELECCION = JSON.parse(saved);
+    renderSprintColumns();
+    recalcCapacidad();
+    renderResumenTabla();
+    renderSeguimiento();
+    document.getElementById('badge-seg').textContent =
+      (SPRINT_SELECCION.pareto?.length || 0) + (SPRINT_SELECCION.demas?.length || 0);
+  }
+}
+
+function exportarDatos() {
+  const data = {
+    exportado: new Date().toISOString(),
+    historial: JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]'),
+    config:    JSON.parse(localStorage.getItem(STORAGE_KEYS.config) || '{}'),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `oncredit-planning-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast('Exportación completada', 'success');
+}
+
+function importarDatos(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.historial) {
+        localStorage.setItem(STORAGE_KEYS.historial, JSON.stringify(data.historial));
+        toast(`Importados ${data.historial.length} sprints`, 'success');
+      }
+      actualizarInfoStorage();
+    } catch(err) {
+      toast('Archivo inválido', 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function limpiarDatos() {
+  if (!confirm('¿Borrar todos los datos locales? Esta acción no se puede deshacer.')) return;
+  Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+  SPRINT_SELECCION = { pareto: [], demas: [] };
+  ISSUES = [];
+  location.reload();
+}
+
+function actualizarInfoStorage() {
+  const bytes = JSON.stringify(localStorage).length;
+  const kb    = (bytes / 1024).toFixed(1);
+  const historial = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]');
+  const el = document.getElementById('storage-info');
+  if (el) el.textContent = `Almacenamiento usado: ${kb} KB de ~5 MB disponibles · ${historial.length} sprints en historial`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COPIAR RESUMEN
+═══════════════════════════════════════════════════════════ */
+function copiarResumen() {
+  const todas = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  if (!todas.length) { toast('No hay historias seleccionadas', 'error'); return; }
+
+  const lineas = ['Planning ' + new Date().toLocaleDateString('es-CO'), ''];
+  const porProy = {};
+  todas.forEach(i => {
+    if (!porProy[i.proyecto]) porProy[i.proyecto] = [];
+    porProy[i.proyecto].push(i);
+  });
+  Object.entries(porProy).forEach(([p, items]) => {
+    const sp = items.reduce((a,i) => a+i.sp, 0);
+    lineas.push(`${p} — ${items.length} HU · ${sp.toFixed(1)} SP`);
+    items.forEach(i => lineas.push(`  ${i.key}  [${i.clasificacion.toUpperCase()}]  ${i.sp} SP  ${i.resumen.slice(0,60)}`));
+    lineas.push('');
+  });
+  const total = todas.reduce((a,i) => a+i.sp, 0);
+  lineas.push(`TOTAL: ${todas.length} HU · ${total.toFixed(1)} SP`);
+
+  navigator.clipboard.writeText(lineas.join('\n'))
+    .then(() => toast('Resumen copiado', 'success'))
+    .catch(() => toast('No se pudo copiar', 'error'));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ALERTAS
+═══════════════════════════════════════════════════════════ */
+function mostrarAlerta(msg, tipo = 'info', autoClear = false) {
+  const container = document.getElementById('alerts-container');
+  if (!container) return;
+  const existing = Array.from(container.querySelectorAll('.alert'));
+  if (existing.some(el => el.dataset.msg === msg)) return;
+
+  if (autoClear) {
+    existing.filter(e => e.classList.contains('alert-' + tipo)).forEach(e => e.remove());
+  }
+
+  const el = document.createElement('div');
+  el.className = `alert alert-${tipo}`;
+  el.dataset.msg = msg;
+  el.innerHTML = `<span>${msg}</span><button class="alert-close" onclick="this.parentElement.remove()">×</button>`;
+  container.appendChild(el);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UI HELPERS
+═══════════════════════════════════════════════════════════ */
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name)?.classList.add('active');
+  btn?.classList.add('active');
+  if (name === 'seguimiento') setTimeout(() => renderSeguimientoF2(), 50);
+  if (name === 'metricas')    setTimeout(() => renderMetricas(), 50);
+  if (name === 'ejecutivo')   setTimeout(() => renderEjecutivo(), 50);
+}
+
+function cerrarModal(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+
+function toast(msg, tipo = 'info') {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${tipo}`;
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function agruparPorClasificacion() {
+  const grupos = {};
+  ISSUES.filter(i => i.clasificacion !== 'excluida').forEach(i => {
+    if (!grupos[i.clasificacion]) grupos[i.clasificacion] = [];
+    grupos[i.clasificacion].push(i);
+  });
+  return grupos;
+}
+
+function setFiltro(valor, btn) {
+  FILTRO_ACTIVO = valor;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPlanningBoard();
+}
+/* ═══════════════════════════════════════════════════════════
+   FASE 2 — SEGUIMIENTO COMPLETO
+═══════════════════════════════════════════════════════════ */
+function renderSeguimiento() {
+  renderSeguimientoF2();
+}
+
+function renderSeguimientoF2() {
+  const todas = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  if (!todas.length) {
+    document.getElementById('riesgo-rows').innerHTML =
+      '<div class="riesgo-row nivel-info"><span class="riesgo-row-icon">ℹ</span><span class="riesgo-row-text">Selecciona historias en Planning para activar el seguimiento</span></div>';
+    document.getElementById('semaforo-grid').innerHTML =
+      '<div style="text-align:center;color:var(--gris-500);font-size:12px;padding:12px">Sin historias en el sprint</div>';
+    document.getElementById('sprint-seguimiento-list').innerHTML =
+      '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--gris-500)">Sin historias. Ve a Planning para seleccionar.</td></tr>';
+    return;
+  }
+
+  const spComprometidos = todas.reduce((a,i) => a + i.sp, 0);
+  const completadas     = todas.filter(i => SEG_COMPLETADAS[i.key] || matchEstados(i.estado.toLowerCase(), CFG.estadosExcluir || []));
+  const spCompletados   = completadas.reduce((a,i) => a + i.sp, 0);
+  const pct             = spComprometidos > 0 ? Math.round(spCompletados / spComprometidos * 100) : 0;
+  const velocity        = calcularVelocityBase();
+  const diasRest        = diasRestantesSprint();
+  const bloqueadas      = detectarBloqueadas(todas);
+  const retrasadas      = detectarRetrasadas(todas);
+
+  // Métricas rápidas
+  document.getElementById('seg-comprometidos').textContent = spComprometidos.toFixed(1);
+  document.getElementById('seg-completados').textContent   = spCompletados.toFixed(1);
+  document.getElementById('seg-dias-rest').textContent     = diasRest >= 0 ? diasRest : '—';
+  document.getElementById('seg-velocity').textContent      = velocity > 0 ? velocity.toFixed(1) : '—';
+
+  // Anillo de progreso
+  dibujarAnillo(pct, spCompletados, spComprometidos);
+
+  // Burndown
+  dibujarBurndown(spComprometidos, spCompletados, diasRest);
+
+  // Panel de riesgo
+  renderRiesgo(todas, bloqueadas, retrasadas, spComprometidos, spCompletados, diasRest, velocity);
+
+  // Semáforo
+  renderSemaforo(todas);
+
+  // Mitad de sprint
+  renderMitad(spComprometidos, spCompletados, diasRest);
+
+  // Tabla de historias
+  renderTablaIssues(todas, bloqueadas, retrasadas);
+
+  // Cierre
+  renderCierrePanel();
+
+  // Badges de alertas en header
+  const bBloq = document.getElementById('badge-bloq-seg');
+  const bRet  = document.getElementById('badge-ret-seg');
+  if (bBloq) { bBloq.textContent = `${bloqueadas.length} bloqueada${bloqueadas.length !== 1?'s':''}`; bBloq.style.display = bloqueadas.length ? '' : 'none'; }
+  if (bRet)  { bRet.textContent  = `${retrasadas.length} retrasada${retrasadas.length !== 1?'s':''}`; bRet.style.display  = retrasadas.length  ? '' : 'none'; }
+
+  // Timestamp
+  const ahora = new Date().toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+  const el = document.getElementById('seg-last-sync');
+  if (el) el.textContent = `actualizado ${ahora}`;
+}
+
+/* ── DETECCIÓN AUTOMÁTICA ───────────────────────────────── */
+function detectarBloqueadas(issues) {
+  return issues.filter(i =>
+    i.clasificacion === 'bloqueada' ||
+    matchEstados(i.estado.toLowerCase(), CFG.estadosBloqueados || [])
+  );
+}
+
+function detectarRetrasadas(issues) {
+  return issues.filter(i => {
+    const completa = SEG_COMPLETADAS[i.key] || matchEstados(i.estado.toLowerCase(), CFG.estadosExcluir || []);
+    return !completa && i.diasDesdeCreacion > (CFG.umbralDeuda || 7);
+  });
+}
+
+function calcularVelocityBase() {
+  const hist = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]');
+  if (!hist.length) return 0;
+  const recientes = hist.slice(-4);
+  const completados = recientes.filter(s => s.spCompletados > 0);
+  if (!completados.length) return 0;
+  return completados.reduce((a,s) => a + s.spCompletados, 0) / completados.length;
+}
+
+function diasRestantesSprint() {
+  const hist = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]');
+  const ultimo = hist[hist.length - 1];
+  if (!ultimo?.fecha) return -1;
+  const inicio  = new Date(ultimo.fecha);
+  const fin     = new Date(inicio.getTime() + DURACION_SPRINT_DIAS * 86400000);
+  const hoy     = new Date();
+  const resta   = Math.ceil((fin - hoy) / 86400000);
+  return Math.max(resta, 0);
+}
+
+/* ── RIESGO ─────────────────────────────────────────────── */
+function calcularNivelRiesgo(spComprometidos, spCompletados, diasRest, bloqueadas, retrasadas, velocity) {
+  if (!spComprometidos) return 'sin-datos';
+  const spPendiente = spComprometidos - spCompletados;
+  const pct = spCompletados / spComprometidos;
+  const velOk = velocity > 0 && (spPendiente / Math.max(diasRest, 1)) <= velocity / DURACION_SPRINT_DIAS * 1.2;
+
+  if (bloqueadas.length > 2 || pct < 0.3 && diasRest < 3) return 'alto';
+  if (bloqueadas.length > 0 || retrasadas.length > 2 || (!velOk && diasRest < 4)) return 'medio';
+  return 'bajo';
+}
+
+function renderRiesgo(todas, bloqueadas, retrasadas, spComp, spCompletados, diasRest, velocity) {
+  const nivel = calcularNivelRiesgo(spComp, spCompletados, diasRest, bloqueadas, retrasadas, velocity);
+  const badgeEl = document.getElementById('riesgo-badge');
+  const badgeMap = {
+    'bajo':      ['riesgo-verde', 'Bajo'],
+    'medio':     ['riesgo-amber', 'Medio'],
+    'alto':      ['riesgo-rojo',  'Alto'],
+    'sin-datos': ['riesgo-verde', 'Sin datos'],
+  };
+  badgeEl.className = `riesgo-badge ${badgeMap[nivel][0]}`;
+  badgeEl.textContent = badgeMap[nivel][1];
+
+  const filas = [];
+
+  if (bloqueadas.length) {
+    filas.push({ nivel: 'alto', icon: '⊘', text: `${bloqueadas.length} historia${bloqueadas.length>1?'s':''} bloqueada${bloqueadas.length>1?'s':''}: ${bloqueadas.map(i=>i.key).join(', ')}`, tag: 'Acción requerida' });
+  }
+  if (retrasadas.length) {
+    filas.push({ nivel: 'medio', icon: '◔', text: `${retrasadas.length} historia${retrasadas.length>1?'s':''} sin cerrar con más de ${CFG.umbralDeuda||7} días: ${retrasadas.slice(0,3).map(i=>i.key).join(', ')}${retrasadas.length>3?` +${retrasadas.length-3}`:''}`, tag: 'Revisar' });
+  }
+  const spPendiente = spComp - spCompletados;
+  if (velocity > 0 && diasRest >= 0) {
+    const spPosible = velocity / DURACION_SPRINT_DIAS * diasRest;
+    if (spPendiente > spPosible * 1.2) {
+      filas.push({ nivel: 'medio', icon: '↗', text: `A velocity actual (${velocity.toFixed(1)} SP/sem), podrían cerrarse ~${spPosible.toFixed(1)} SP en ${diasRest} días restantes. Pendiente: ${spPendiente.toFixed(1)} SP.`, tag: 'Proyección' });
+    }
+  }
+  const sinSP = todas.filter(i => !i.sp);
+  if (sinSP.length) {
+    filas.push({ nivel: 'info', icon: '?', text: `${sinSP.length} historia${sinSP.length>1?'s':''} sin story points estimados: ${sinSP.map(i=>i.key).join(', ')}`, tag: 'Estimar' });
+  }
+  if (!filas.length) {
+    filas.push({ nivel: 'info', icon: '✓', text: 'Sin alertas activas. El sprint va dentro de lo esperado.', tag: '' });
+  }
+
+  document.getElementById('riesgo-rows').innerHTML = filas.map(f => `
+    <div class="riesgo-row nivel-${f.nivel}">
+      <span class="riesgo-row-icon">${f.icon}</span>
+      <span class="riesgo-row-text">${f.text}</span>
+      ${f.tag ? `<span class="riesgo-row-tag dias-${f.nivel==='alto'?'alert':f.nivel==='medio'?'warn':'ok'}">${f.tag}</span>` : ''}
+    </div>`).join('');
+}
+
+/* ── SEMÁFORO ───────────────────────────────────────────── */
+function renderSemaforo(todas) {
+  const proyectos = [...new Set(todas.map(i => i.proyecto))];
+  const semGrid   = document.getElementById('semaforo-grid');
+  if (!proyectos.length) {
+    semGrid.innerHTML = '<div style="text-align:center;color:var(--gris-500);font-size:12px;padding:12px">Sin proyectos</div>';
+    return;
+  }
+  semGrid.innerHTML = proyectos.map(p => {
+    const pIssues  = todas.filter(i => i.proyecto === p);
+    const bloq     = pIssues.filter(i => i.clasificacion === 'bloqueada').length;
+    const compl    = pIssues.filter(i => SEG_COMPLETADAS[i.key]).length;
+    const pctCompl = Math.round(compl / pIssues.length * 100);
+    const dot      = bloq > 0 ? 'dot-red' : pIssues.some(i => i.diasDesdeCreacion > 14 && !SEG_COMPLETADAS[i.key]) ? 'dot-amber' : 'dot-green';
+    const esPareto = pIssues[0]?.esPareto;
+    const spP      = pIssues.reduce((a,i) => a+i.sp, 0);
+    return `<div class="semaforo-item">
+      <div class="semaforo-dot ${dot}"></div>
+      <span class="semaforo-name">${p}</span>
+      <span class="semaforo-sp">${pctCompl}% · ${spP.toFixed(1)} SP</span>
+      ${esPareto ? '<span style="font-size:9px;background:var(--azul);color:#fff;padding:1px 5px;border-radius:3px;margin-top:2px">Pareto</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+/* ── MITAD DE SPRINT ────────────────────────────────────── */
+function renderMitad(spComprometidos, spCompletados, diasRest) {
+  const hist  = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]');
+  const ult   = hist[hist.length - 1];
+  const badge = document.getElementById('mitad-badge');
+  const cont  = document.getElementById('mitad-content');
+  if (!ult) { cont.innerHTML = '<div style="font-size:12px;color:var(--gris-500)">Confirma un sprint para ver la revisión.</div>'; return; }
+
+  const diaActual = DURACION_SPRINT_DIAS - diasRest;
+  if (badge) badge.textContent = `día ${Math.max(diaActual, 1)} de ${DURACION_SPRINT_DIAS}`;
+
+  const mitad       = DURACION_SPRINT_DIAS / 2;
+   const spEsperado = spComprometidos * (diaActual / DURACION_SPRINT_DIAS);
+  const delta       = spCompletados - spEsperado;
+  const pct         = spComprometidos > 0 ? Math.round(spCompletados / spComprometidos * 100) : 0;
+  const status      = delta >= 0 ? 'adelantado' : Math.abs(delta) < spComprometidos * 0.15 ? 'en track' : 'retrasado';
+  const colorStatus = status === 'adelantado' ? 'var(--verde)' : status === 'en track' ? 'var(--azul)' : 'var(--rojo)';
+
+  cont.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+      <div style="background:var(--gris-100);border-radius:var(--r);padding:10px 12px">
+        <div style="font-size:11px;color:var(--gris-500);margin-bottom:4px">SP comprometidos</div>
+        <div style="font-size:20px;font-weight:700;color:var(--azul)">${spComprometidos.toFixed(1)}</div>
+      </div>
+      <div style="background:var(--gris-100);border-radius:var(--r);padding:10px 12px">
+        <div style="font-size:11px;color:var(--gris-500);margin-bottom:4px">SP completados (${pct}%)</div>
+        <div style="font-size:20px;font-weight:700;color:var(--verde)">${spCompletados.toFixed(1)}</div>
+      </div>
+      <div style="background:var(--gris-100);border-radius:var(--r);padding:10px 12px">
+        <div style="font-size:11px;color:var(--gris-500);margin-bottom:4px">Estado</div>
+        <div style="font-size:16px;font-weight:700;color:${colorStatus}">${status.charAt(0).toUpperCase() + status.slice(1)}</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--gris-700)">
+      ${status === 'adelantado'
+        ? `El equipo va ${Math.abs(delta).toFixed(1)} SP por encima de lo esperado en el día ${diaActual}. Buen ritmo.`
+        : status === 'en track'
+        ? `El equipo está dentro del margen esperado (±15%). Continuar con el plan actual.`
+        : `El equipo está ${Math.abs(delta).toFixed(1)} SP por debajo de lo esperado. Evaluar ajuste de alcance en daily.`}
+    </div>`;
+}
+
+/* ── TABLA DE HISTORIAS ─────────────────────────────────── */
+function renderTablaIssues(todas, bloqueadas, retrasadas) {
+  let filtradas = todas;
+  if (SEG_FILTRO === 'bloq')   filtradas = bloqueadas;
+  if (SEG_FILTRO === 'riesgo') filtradas = retrasadas;
+
+  const tbody = document.getElementById('sprint-seguimiento-list');
+  if (!filtradas.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--gris-500)">Sin historias${SEG_FILTRO !== 'todos' ? ' en este filtro' : ''}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtradas.map(i => {
+    const completa = SEG_COMPLETADAS[i.key] || matchEstados(i.estado.toLowerCase(), CFG.estadosExcluir || []);
+    const esBloq   = bloqueadas.some(b => b.key === i.key);
+    const esRet    = retrasadas.some(r => r.key === i.key);
+    const diasClass = i.diasDesdeCreacion > 14 ? 'dias-alert' : i.diasDesdeCreacion > 7 ? 'dias-warn' : 'dias-ok';
+    const riesgoHTML = esBloq
+      ? '<span class="dias-chip dias-alert">Bloqueada</span>'
+      : esRet
+      ? '<span class="dias-chip dias-warn">Retrasada</span>'
+      : completa
+      ? '<span class="dias-chip dias-ok">Completada</span>'
+      : '<span class="dias-chip" style="background:var(--gris-100);color:var(--gris-500)">Normal</span>';
+
+    return `<tr style="${completa ? 'opacity:.55' : ''}">
+      <td><a href="${i.url}" target="_blank" style="color:var(--azul);font-family:monospace;font-size:11px;font-weight:600;text-decoration:none">${i.key}</a></td>
+      <td style="color:var(--gris-700);max-width:280px;font-size:12px">${i.resumen}</td>
+      <td><span class="hu-project ${i.esPareto?'pareto':''}">${i.proyecto}</span></td>
+      <td style="text-align:center;font-weight:700;color:var(--azul)">${i.sp||'?'}</td>
+      <td>${getBadgeHTML(i.clasificacion)}</td>
+      <td style="text-align:center"><span class="dias-chip ${diasClass}">${i.diasDesdeCreacion}d</span></td>
+      <td style="text-align:center">${riesgoHTML}</td>
+      <td style="text-align:center">
+        <input type="checkbox" ${completa?'checked':''} onchange="toggleCompleta('${i.key}',this.checked)"
+          style="width:16px;height:16px;cursor:pointer;accent-color:var(--verde)">
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleCompleta(key, checked) {
+  SEG_COMPLETADAS[key] = checked;
+  localStorage.setItem('oc_seg_completadas', JSON.stringify(SEG_COMPLETADAS));
+  renderSeguimientoF2();
+}
+
+function setSeguimientoFiltro(val, btn) {
+  SEG_FILTRO = val;
+  document.querySelectorAll('[id^="sf-"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSeguimientoF2();
+}
+
+/* ── CIERRE DE SPRINT ───────────────────────────────────── */
+function renderCierrePanel() {
+  const todas = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  const noCompletas = todas.filter(i => !SEG_COMPLETADAS[i.key] && !matchEstados(i.estado.toLowerCase(), CFG.estadosExcluir||[]));
+  const cont = document.getElementById('cierre-arrastres');
+  if (!cont) return;
+  if (!noCompletas.length) {
+    cont.innerHTML = '<div style="font-size:12px;color:var(--verde);font-weight:500">Todas las historias están completadas.</div>';
+    return;
+  }
+  cont.innerHTML = `
+    <div style="font-size:12px;color:var(--gris-700);margin-bottom:8px">
+      <strong>${noCompletas.length} historia${noCompletas.length>1?'s':''}</strong> quedarán como arrastre al siguiente sprint:
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px">
+      ${noCompletas.map(i => `
+        <span style="font-size:10px;font-family:monospace;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber)">${i.key} · ${i.sp} SP</span>
+      `).join('')}
+    </div>`;
+}
+
+function abrirModalCierre() {
+  const todas        = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  const completadas  = todas.filter(i => SEG_COMPLETADAS[i.key] || matchEstados(i.estado.toLowerCase(), CFG.estadosExcluir||[]));
+  const noCompletas  = todas.filter(i => !SEG_COMPLETADAS[i.key] && !matchEstados(i.estado.toLowerCase(), CFG.estadosExcluir||[]));
+  const spComp       = completadas.reduce((a,i) => a+i.sp, 0);
+  const spTotal      = todas.reduce((a,i) => a+i.sp, 0);
+  const pct          = spTotal > 0 ? Math.round(spComp/spTotal*100) : 0;
+  const hist         = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]');
+  const sprint       = hist[hist.length-1]?.sprint || 'Sprint actual';
+
+  document.getElementById('modal-cierre-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="background:var(--verde-bg);border-radius:var(--r);padding:10px 12px;text-align:center">
+        <div style="font-size:11px;color:var(--verde);margin-bottom:3px">Completadas</div>
+        <div style="font-size:20px;font-weight:700;color:var(--verde)">${completadas.length}</div>
+        <div style="font-size:11px;color:var(--verde)">${spComp.toFixed(1)} SP</div>
+      </div>
+      <div style="background:var(--amber-bg);border-radius:var(--r);padding:10px 12px;text-align:center">
+        <div style="font-size:11px;color:var(--amber);margin-bottom:3px">Arrastradas</div>
+        <div style="font-size:20px;font-weight:700;color:var(--amber)">${noCompletas.length}</div>
+        <div style="font-size:11px;color:var(--amber)">${noCompletas.reduce((a,i)=>a+i.sp,0).toFixed(1)} SP</div>
+      </div>
+      <div style="background:var(--azul-light);border-radius:var(--r);padding:10px 12px;text-align:center">
+        <div style="font-size:11px;color:var(--azul);margin-bottom:3px">Cumplimiento</div>
+        <div style="font-size:20px;font-weight:700;color:${pct>=70?'var(--verde)':pct>=50?'var(--amber)':'var(--rojo)'}">${pct}%</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--gris-500);margin-bottom:10px">
+      Se guardará el registro en el historial local. Las historias no completadas podrán arrastrarse al siguiente sprint desde Planning.
+    </p>
+    <div style="background:var(--gris-100);border-radius:var(--r);padding:8px 12px;font-size:11px;color:var(--gris-500)">
+      Sprint: <strong style="color:var(--gris-700)">${sprint}</strong>
+    </div>`;
+  document.getElementById('modal-cierre').classList.add('open');
+}
+
+function ejecutarCierreSprint() {
+  const todas       = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  const completadas = todas.filter(i => SEG_COMPLETADAS[i.key] || matchEstados(i.estado.toLowerCase(), CFG.estadosExcluir||[]));
+  const spCompletados = completadas.reduce((a,i) => a+i.sp, 0);
+
+  const hist  = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]');
+  if (hist.length) {
+    hist[hist.length-1].spCompletados    = spCompletados;
+    hist[hist.length-1].cerrado          = new Date().toISOString();
+    hist[hist.length-1].pctCumplimiento  = spCompletados / (hist[hist.length-1].spComprometidos||1) * 100;
+    hist[hist.length-1].arrastres        = todas.filter(i => !SEG_COMPLETADAS[i.key]).length;
+    localStorage.setItem(STORAGE_KEYS.historial, JSON.stringify(hist));
+  }
+
+  // Limpiar selección y marcaciones
+  SPRINT_SELECCION  = { pareto: [], demas: [] };
+  SEG_COMPLETADAS   = {};
+  localStorage.removeItem(STORAGE_KEYS.seleccion);
+  localStorage.removeItem('oc_seg_completadas');
+
+  cerrarModal('modal-cierre');
+  renderSprintColumns();
+  recalcCapacidad();
+  renderResumenTabla();
+  renderSeguimientoF2();
+  toast('Sprint cerrado. Historial actualizado.', 'success');
+  actualizarInfoStorage();
+}
+
+/* ── GRÁFICAS CANVAS ────────────────────────────────────── */
+function dibujarAnillo(pct, completados, total) {
+  const canvas = document.getElementById('ring-canvas');
+  if (!canvas) return;
+  const ctx  = canvas.getContext('2d');
+  const cx   = 40, cy = 40, r = 30, lw = 8;
+  ctx.clearRect(0, 0, 80, 80);
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const trackColor = isDark ? '#2a2a38' : '#E8E8EC';
+  const fillColor  = pct >= 70 ? '#0F7B5A' : pct >= 40 ? '#9A5D00' : '#F61B3F';
+  ctx.beginPath(); ctx.arc(cx,cy,r, -Math.PI/2, Math.PI*2-Math.PI/2); ctx.strokeStyle = trackColor; ctx.lineWidth = lw; ctx.stroke();
+  if (pct > 0) {
+    ctx.beginPath(); ctx.arc(cx,cy,r, -Math.PI/2, (pct/100)*Math.PI*2-Math.PI/2); ctx.strokeStyle = fillColor; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+  }
+  const el = document.getElementById('ring-pct');
+  const sub = document.getElementById('ring-sub');
+  if (el) el.textContent = pct + '%';
+  if (el) el.style.color = fillColor;
+  if (sub) sub.textContent = `${completados.toFixed(1)} / ${total.toFixed(1)} SP`;
+  document.getElementById('seg-pct') && (document.getElementById('seg-pct').textContent = pct + '%');
+}
+
+function dibujarBurndown(spTotal, spCompletados, diasRest) {
+  const canvas = document.getElementById('burndown-canvas');
+  if (!canvas) return;
+  const parent = canvas.parentElement;
+  canvas.width  = parent.clientWidth || 500;
+  canvas.height = 170;
+  const ctx  = canvas.getContext('2d');
+  const w    = canvas.width, h = 150;
+  const pad  = { t:10, r:20, b:30, l:40 };
+  const gw   = w - pad.l - pad.r;
+  const gh   = h - pad.t - pad.b;
+  ctx.clearRect(0, 0, w, h + 20);
+
+  const isDark   = matchMedia('(prefers-color-scheme: dark)').matches;
+  const textCol  = isDark ? '#9a98a0' : '#7A7A88';
+  const gridCol  = isDark ? '#2a2a38' : '#E8E8EC';
+  const idealCol = isDark ? '#4a6080' : '#B5D4F4';
+  const realCol  = '#06005F';
+  const dias     = DURACION_SPRINT_DIAS;
+  const diaAct   = Math.max(dias - diasRest, 0);
+
+  const xPos = d => pad.l + (d / dias) * gw;
+  const yPos = sp => pad.t + gh - (sp / spTotal) * gh;
+
+  // Grid
+  ctx.strokeStyle = gridCol; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (gh / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+    const sp = spTotal - (spTotal / 4) * i;
+    ctx.fillStyle = textCol; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(sp.toFixed(0), pad.l - 4, y + 3);
+  }
+
+  // Eje X días
+  ctx.fillStyle = textCol; ctx.textAlign = 'center';
+  for (let d = 0; d <= dias; d++) {
+    ctx.fillText('L', xPos(d), h - 6);
+  }
+  ['L','M','X','J','V','S','D'].forEach((l, i) => {
+    if (i <= dias) { ctx.fillText(l, xPos(i), h - 4); }
+  });
+
+  // Línea ideal (azul claro)
+  ctx.beginPath(); ctx.strokeStyle = idealCol; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
+  ctx.moveTo(xPos(0), yPos(spTotal));
+  ctx.lineTo(xPos(dias), yPos(0));
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // Línea real (azul oscuro)
+  const realPoints = [];
+  realPoints.push({ d: 0, sp: spTotal });
+  if (diaAct > 0) realPoints.push({ d: diaAct, sp: Math.max(spTotal - spCompletados, 0) });
+  ctx.beginPath(); ctx.strokeStyle = realCol; ctx.lineWidth = 2;
+  realPoints.forEach((p, idx) => {
+    if (idx === 0) ctx.moveTo(xPos(p.d), yPos(p.sp));
+    else ctx.lineTo(xPos(p.d), yPos(p.sp));
+  });
+  ctx.stroke();
+
+  // Punto actual
+  if (diaAct > 0 && realPoints.length > 1) {
+    const last = realPoints[realPoints.length - 1];
+    ctx.beginPath(); ctx.arc(xPos(last.d), yPos(last.sp), 4, 0, Math.PI*2);
+    ctx.fillStyle = realCol; ctx.fill();
+  }
+
+  // Leyenda
+  ctx.font = '10px sans-serif';
+  [[idealCol, 'Ideal', true], [realCol, 'Real', false]].forEach(([c, l, dash], i) => {
+    const lx = pad.l + 10 + i * 80;
+    ctx.strokeStyle = c; ctx.lineWidth = 1.5;
+    if (dash) ctx.setLineDash([4,3]); else ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(lx, pad.t + 8); ctx.lineTo(lx + 20, pad.t + 8); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = textCol; ctx.textAlign = 'left';
+    ctx.fillText(l, lx + 24, pad.t + 12);
+  });
+}
+
+/* ── SINCRONIZACIÓN DE SEGUIMIENTO ─────────────────────── */
+async function sincronizarSeguimiento() {
+  if (!CFG.email || !CFG.token) { renderSeguimientoF2(); return; }
+  try {
+    await cargarIssues();
+    const savedComp = localStorage.getItem('oc_seg_completadas');
+    if (savedComp) SEG_COMPLETADAS = JSON.parse(savedComp);
+    renderSeguimientoF2();
+    toast('Seguimiento actualizado', 'success');
+  } catch(e) {
+    renderSeguimientoF2();
+  }
+}
+
+/* ── AUTO-REFRESH ───────────────────────────────────────── */
+function iniciarAutoRefresh() {
+  if (AUTO_REFRESH_ID) clearInterval(AUTO_REFRESH_ID);
+  AUTO_REFRESH_ID = setInterval(() => {
+    const tab = document.getElementById('tab-seguimiento');
+    if (tab && tab.classList.contains('active')) {
+      sincronizarSeguimiento();
+    }
+  }, 5 * 60 * 1000);
+}
+/* ═══════════════════════════════════════════════════════════
+   FASE 3 — MÉTRICAS HISTÓRICAS
+═══════════════════════════════════════════════════════════ */
+
+/* ── ENTRY POINT ────────────────────────────────────────── */
+function renderMetricas() {
+  const historial = obtenerHistorialFiltrado();
+
+  if (!historial.length) {
+    // Mostrar demo data si no hay historial real
+    const demo = generarHistorialDemo();
+    renderMetricasConDatos(demo, true);
+    return;
+  }
+  document.getElementById('met-empty').style.display = 'none';
+  renderMetricasConDatos(historial, false);
+}
+
+function renderMetricasConDatos(hist, esDemo) {
+  document.getElementById('met-empty').style.display = 'none';
+  renderKPIs(hist);
+  renderChartVelocity(hist);
+  renderChartCumplimiento(hist);
+  renderChartPareto(hist);
+  renderChartDeuda(hist);
+  renderChartTendencia(hist);
+  renderTablaHistorial(hist, esDemo);
+  renderCumplimientoMensual(hist);
+}
+
+/* ── RANGO ──────────────────────────────────────────────── */
+function setRango(n, btn) {
+  MET_RANGO = n;
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMetricas();
+}
+
+function obtenerHistorialFiltrado() {
+  const hist = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]');
+  if (!MET_RANGO || MET_RANGO === 0) return hist;
+  return hist.slice(-MET_RANGO);
+}
+
+/* ── KPIs ───────────────────────────────────────────────── */
+function renderKPIs(hist) {
+  const cerrados = hist.filter(s => s.spCompletados > 0 || s.cerrado);
+  const velocity  = cerrados.length
+    ? cerrados.reduce((a,s) => a + (s.spCompletados||0), 0) / cerrados.length : 0;
+  const cumpl     = cerrados.length
+    ? cerrados.reduce((a,s) => a + (s.pctCumplimiento||0), 0) / cerrados.length : 0;
+  const arrastres = hist.length
+    ? hist.reduce((a,s) => a + (s.arrastres||0), 0) / hist.length : 0;
+
+  // Deltas vs período anterior
+  const mitad  = Math.floor(hist.length / 2);
+  const primeraM = hist.slice(0, mitad);
+  const segundaM = hist.slice(mitad);
+  const velAnterior = primeraM.filter(s=>s.spCompletados>0).reduce((a,s)=>a+(s.spCompletados||0),0) / (primeraM.filter(s=>s.spCompletados>0).length||1);
+  const velActual   = segundaM.filter(s=>s.spCompletados>0).reduce((a,s)=>a+(s.spCompletados||0),0) / (segundaM.filter(s=>s.spCompletados>0).length||1);
+
+  setKPI('kpi-velocity',       velocity.toFixed(1),    velActual - velAnterior, 'SP');
+  setKPI('kpi-cumplimiento',   cumpl.toFixed(0) + '%', 0, '');
+  setKPI('kpi-arrastres',      arrastres.toFixed(1),   0, '');
+  setKPI('kpi-sprints',        hist.length,            0, '');
+}
+
+function setKPI(id, val, delta, unit) {
+  const el = document.getElementById(id);
+  const de = document.getElementById(id + '-delta');
+  if (el) el.textContent = val;
+  if (de && delta !== 0) {
+    const cls   = delta > 0 ? 'delta-up' : 'delta-down';
+    const arrow = delta > 0 ? '↑' : '↓';
+    de.className = `met-kpi-delta ${cls}`;
+    de.textContent = `${arrow} ${Math.abs(delta).toFixed(1)} ${unit} vs período anterior`;
+  }
+}
+
+/* ── GRÁFICAS CANVAS ────────────────────────────────────── */
+const COLORES = {
+  azul:      '#06005F',
+  azulClaro: '#B5D4F4',
+  rojo:      '#F61B3F',
+  rojoClaro: '#FABBC3',
+  verde:     '#0F7B5A',
+  verdeClaro:'#A7DFD0',
+  amber:     '#F59E0B',
+  amberClaro:'#FDE68A',
+  gris:      '#C8C8D0',
+};
+
+function getDarkMode() { return matchMedia('(prefers-color-scheme: dark)').matches; }
+function getTextColor() { return getDarkMode() ? '#9a98a0' : '#7A7A88'; }
+function getGridColor() { return getDarkMode() ? '#2a2a38' : '#E8E8EC'; }
+
+function prepCanvas(id) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return null;
+  const parent = canvas.parentElement;
+  canvas.width  = parent.clientWidth || 500;
+  canvas.height = parent.clientHeight || 200;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  return { canvas, ctx, w: canvas.width, h: canvas.height };
+}
+
+// Gráfica de barras agrupadas genérica
+function dibujarBarras(id, labels, series, opts = {}) {
+  const c = prepCanvas(id);
+  if (!c) return;
+  const { ctx, w, h } = c;
+  const pad   = { t: 20, r: 16, b: 36, l: 42 };
+  const gw    = w - pad.l - pad.r;
+  const gh    = h - pad.t - pad.b;
+  const tc    = getTextColor();
+  const gc    = getGridColor();
+  const n     = labels.length;
+  const ns    = series.length;
+  const bW    = Math.max(8, (gw / n) * 0.7 / ns);
+  const gap   = (gw / n) * 0.3 / (n > 1 ? 1 : 2);
+  const allVals = series.flatMap(s => s.data);
+  const maxV  = Math.max(...allVals, 1) * 1.1;
+
+  // Grid
+  ctx.strokeStyle = gc; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (gh / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+    ctx.fillStyle = tc; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxV - (maxV / 4) * i), pad.l - 4, y + 3);
+  }
+
+  // Barras
+  labels.forEach((lbl, i) => {
+    const cx = pad.l + (i + 0.5) * (gw / n);
+    series.forEach((s, si) => {
+      const val  = s.data[i] || 0;
+      const bh   = (val / maxV) * gh;
+      const x    = cx - (ns * bW) / 2 + si * bW;
+      const y    = pad.t + gh - bh;
+      ctx.fillStyle = s.color;
+      // Barra con esquinas redondeadas arriba
+      const r = Math.min(3, bW / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y); ctx.lineTo(x + bW - r, y);
+      ctx.arcTo(x + bW, y, x + bW, y + r, r);
+      ctx.lineTo(x + bW, y + bh); ctx.lineTo(x, y + bh);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath(); ctx.fill();
+
+      // Valor encima si cabe
+      if (bh > 16 && bW > 20) {
+        ctx.fillStyle = '#fff'; ctx.font = `bold 9px sans-serif`; ctx.textAlign = 'center';
+        ctx.fillText(val % 1 === 0 ? val : val.toFixed(1), x + bW / 2, y + 10);
+      }
+    });
+    // Label eje X
+    ctx.fillStyle = tc; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+    const shortLbl = lbl.length > 8 ? lbl.slice(0, 7) + '…' : lbl;
+    ctx.fillText(shortLbl, cx, pad.t + gh + 14);
+  });
+
+  // Leyenda
+  if (series.length > 1) {
+    series.forEach((s, i) => {
+      const lx = pad.l + i * 110;
+      ctx.fillStyle = s.color; ctx.fillRect(lx, h - 14, 10, 8);
+      ctx.fillStyle = tc; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(s.label, lx + 14, h - 7);
+    });
+  }
+}
+
+// Gráfica de línea genérica
+function dibujarLinea(id, labels, series, opts = {}) {
+  const c = prepCanvas(id);
+  if (!c) return;
+  const { ctx, w, h } = c;
+  const pad   = { t: 20, r: 16, b: 36, l: 42 };
+  const gw    = w - pad.l - pad.r;
+  const gh    = h - pad.t - pad.b;
+  const tc    = getTextColor();
+  const gc    = getGridColor();
+  const n     = labels.length;
+  const allV  = series.flatMap(s => s.data.filter(v => v != null));
+  const minV  = opts.minZero ? 0 : Math.max(0, Math.min(...allV) * 0.85);
+  const maxV  = Math.max(...allV, 1) * 1.1;
+  const xPos  = i => pad.l + (i / Math.max(n - 1, 1)) * gw;
+  const yPos  = v => pad.t + gh - ((v - minV) / (maxV - minV)) * gh;
+
+  // Grid
+  ctx.strokeStyle = gc; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (gh / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + gw, y); ctx.stroke();
+    const v = maxV - ((maxV - minV) / 4) * i;
+    ctx.fillStyle = tc; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(v), pad.l - 4, y + 3);
+  }
+
+  // Líneas
+  series.forEach(s => {
+    ctx.beginPath(); ctx.strokeStyle = s.color; ctx.lineWidth = s.width || 2;
+    if (s.dash) ctx.setLineDash([5, 3]); else ctx.setLineDash([]);
+    let started = false;
+    s.data.forEach((v, i) => {
+      if (v == null) { started = false; return; }
+      if (!started) { ctx.moveTo(xPos(i), yPos(v)); started = true; }
+      else ctx.lineTo(xPos(i), yPos(v));
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+    // Puntos
+    s.data.forEach((v, i) => {
+      if (v == null) return;
+      ctx.beginPath(); ctx.arc(xPos(i), yPos(v), 3, 0, Math.PI * 2);
+      ctx.fillStyle = s.color; ctx.fill();
+    });
+  });
+
+  // Labels eje X
+  ctx.fillStyle = tc; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+  labels.forEach((lbl, i) => {
+    const shortLbl = lbl.length > 8 ? lbl.slice(0, 7) + '…' : lbl;
+    ctx.fillText(shortLbl, xPos(i), pad.t + gh + 14);
+  });
+
+  // Leyenda
+  if (series.length > 1) {
+    series.forEach((s, i) => {
+      const lx = pad.l + i * 120;
+      ctx.strokeStyle = s.color; ctx.lineWidth = 2;
+      if (s.dash) ctx.setLineDash([5,3]); else ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(lx, h - 10); ctx.lineTo(lx + 16, h - 10); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = tc; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(s.label, lx + 20, h - 6);
+    });
+  }
+}
+
+/* ── RENDER GRÁFICAS ────────────────────────────────────── */
+function renderChartVelocity(hist) {
+  const labels  = hist.map(s => formatSprintLabel(s.sprint || s.fecha));
+  const comprometidos = hist.map(s => s.spComprometidos || 0);
+  const completados   = hist.map(s => s.spCompletados   || 0);
+  dibujarBarras('chart-velocity', labels, [
+    { label: 'Comprometidos', data: comprometidos, color: COLORES.azulClaro },
+    { label: 'Completados',   data: completados,   color: COLORES.azul },
+  ]);
+  const avg = completados.filter(v=>v>0).reduce((a,v)=>a+v,0) / (completados.filter(v=>v>0).length||1);
+  const el = document.getElementById('velocity-sub');
+  if (el) el.textContent = `Promedio ${avg.toFixed(1)} SP`;
+}
+
+function renderChartCumplimiento(hist) {
+  const labels = hist.map(s => formatSprintLabel(s.sprint || s.fecha));
+  const pcts   = hist.map(s => Math.round(s.pctCumplimiento || (s.spComprometidos > 0 ? (s.spCompletados||0)/s.spComprometidos*100 : 0)));
+  dibujarLinea('chart-cumplimiento', labels, [
+    { label: 'Cumplimiento %', data: pcts, color: COLORES.rojo, width: 2 },
+    { label: 'Meta 80%', data: labels.map(() => 80), color: COLORES.gris, dash: true, width: 1 },
+  ], { minZero: true });
+  const avg = pcts.filter(v=>v>0).reduce((a,v)=>a+v,0) / (pcts.filter(v=>v>0).length||1);
+  const el = document.getElementById('cumplimiento-sub');
+  if (el) el.textContent = `Promedio ${avg.toFixed(0)}%`;
+}
+
+function renderChartPareto(hist) {
+  const labels = hist.map(s => formatSprintLabel(s.sprint || s.fecha));
+  const spPareto = hist.map(s => {
+    if (s.spParetoComprometidos != null) return s.spParetoComprometidos;
+    return Math.round((s.spComprometidos || 0) * ((s.pctPareto || 60) / 100));
+  });
+  const spDemas = hist.map((s, i) => Math.max(0, (s.spComprometidos || 0) - spPareto[i]));
+  dibujarBarras('chart-pareto', labels, [
+    { label: 'Pareto',          data: spPareto, color: COLORES.azul      },
+    { label: 'Demás clientes',  data: spDemas,  color: COLORES.azulClaro },
+  ]);
+}
+
+function renderChartDeuda(hist) {
+  const labels   = hist.map(s => formatSprintLabel(s.sprint || s.fecha));
+  const arrastres = hist.map(s => s.arrastres || 0);
+  const spDeuda   = hist.map(s => {
+    if (s.spDeuda != null) return s.spDeuda;
+    return Math.round((s.arrastres || 0) * 2.5); // estimación si no hay dato
+  });
+  dibujarBarras('chart-deuda', labels, [
+    { label: 'HU arrastradas', data: arrastres, color: COLORES.amber     },
+    { label: 'SP deuda',       data: spDeuda,   color: COLORES.amberClaro },
+  ]);
+  const totalDeuda = arrastres.reduce((a,v) => a+v, 0);
+  const el = document.getElementById('deuda-sub');
+  if (el) el.textContent = `${totalDeuda} arrastres en el período`;
+}
+
+function renderChartTendencia(hist) {
+  const labels = hist.map(s => formatSprintLabel(s.sprint || s.fecha));
+  const vel    = hist.map(s => s.spCompletados || 0);
+  // Regresión lineal simple
+  const n  = vel.length;
+  const xs = vel.map((_, i) => i);
+  const mx = xs.reduce((a,v) => a+v, 0) / n;
+  const my = vel.reduce((a,v) => a+v, 0) / n;
+  const num = xs.reduce((a,v,i) => a + (v-mx)*(vel[i]-my), 0);
+  const den = xs.reduce((a,v)   => a + (v-mx)**2, 0);
+  const slope = den !== 0 ? num/den : 0;
+  const intercept = my - slope * mx;
+  const tendencia = xs.map(x => Math.max(0, +(intercept + slope * x).toFixed(1)));
+
+  dibujarLinea('chart-tendencia', labels, [
+    { label: 'Velocity real', data: vel,       color: COLORES.azul,   width: 2 },
+    { label: 'Tendencia',     data: tendencia, color: COLORES.rojo, dash: true, width: 1.5 },
+  ]);
+
+  const dir = slope > 0.3 ? '↑ Mejorando' : slope < -0.3 ? '↓ Bajando' : '→ Estable';
+  const col = slope > 0.3 ? COLORES.verde : slope < -0.3 ? COLORES.rojo : COLORES.amber;
+  const el  = document.getElementById('tendencia-sub');
+  if (el) { el.textContent = dir; el.style.color = col; el.style.fontWeight = '600'; }
+}
+
+/* ── TABLA HISTORIAL ────────────────────────────────────── */
+function renderTablaHistorial(hist, esDemo) {
+  const tbody = document.getElementById('hist-tbody');
+  if (!tbody) return;
+
+  const rows = [...hist].reverse().map(s => {
+    const comp   = s.spComprometidos || 0;
+    const compl  = s.spCompletados   || 0;
+    const pct    = comp > 0 ? Math.round((compl / comp) * 100) : (s.pctCumplimiento || 0);
+    const pctCol = pct >= 80 ? COLORES.verde : pct >= 60 ? COLORES.amber : COLORES.rojo;
+    const pctFill= pct >= 80 ? COLORES.verde : pct >= 60 ? COLORES.amber : COLORES.rojo;
+    const arras  = s.arrastres || 0;
+    const ptPareto = s.pctPareto || '—';
+    const fecha  = s.fecha ? new Date(s.fecha).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'2-digit' }) : '—';
+    const hu     = s.issues?.length || '—';
+    return `<tr>
+      <td><span style="font-size:11px;font-weight:600;color:var(--azul)">${s.sprint || 'Sprint'}</span>${esDemo?'<span style="font-size:9px;color:var(--gris-500);margin-left:4px">[demo]</span>':''}</td>
+      <td style="font-size:11px;color:var(--gris-500)">${fecha}</td>
+      <td style="text-align:center;font-weight:600">${hu}</td>
+      <td style="text-align:center;font-weight:600;color:var(--azul)">${comp.toFixed(1)}</td>
+      <td style="text-align:center;font-weight:600;color:var(--verde)">${compl.toFixed(1)}</td>
+      <td>
+        <div class="pct-bar-inline">
+          <div class="pct-bar-track"><div class="pct-bar-fill" style="width:${Math.min(pct,100)}%;background:${pctFill}"></div></div>
+          <span class="pct-val" style="color:${pctCol}">${pct}%</span>
+        </div>
+      </td>
+      <td style="text-align:center">
+        ${arras > 0
+          ? `<span class="deuda-tag" style="background:var(--amber-bg);color:var(--amber)">${arras}</span>`
+          : `<span class="deuda-tag" style="background:var(--verde-bg);color:var(--verde)">0</span>`}
+      </td>
+      <td style="text-align:center;font-size:11px;color:var(--gris-700)">${ptPareto !== '—' ? ptPareto + '%' : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  tbody.innerHTML = rows || '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--gris-500)">Sin datos</td></tr>';
+
+  const el = document.getElementById('hist-sub');
+  if (el) el.textContent = `${hist.length} sprints`;
+}
+
+/* ── CUMPLIMIENTO MENSUAL ───────────────────────────────── */
+function renderCumplimientoMensual(hist) {
+  const porMes = {};
+  hist.forEach(s => {
+    if (!s.fecha) return;
+    const d   = new Date(s.fecha);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if (!porMes[key]) porMes[key] = { comp: 0, compl: 0, sprints: 0 };
+    porMes[key].comp   += s.spComprometidos || 0;
+    porMes[key].compl  += s.spCompletados   || 0;
+    porMes[key].sprints++;
+  });
+
+  const meses = Object.entries(porMes).sort(([a],[b]) => a.localeCompare(b));
+  const el    = document.getElementById('mensual-content');
+  if (!el) return;
+
+  if (!meses.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--gris-500);padding:16px 0">Sin datos mensuales</div>';
+    return;
+  }
+
+  el.innerHTML = meses.reverse().map(([key, data]) => {
+    const [yr, mo] = key.split('-');
+    const nombre   = new Date(+yr, +mo-1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+    const pct      = data.comp > 0 ? Math.round(data.compl / data.comp * 100) : 0;
+    const col      = pct >= 80 ? COLORES.verde : pct >= 60 ? COLORES.amber : COLORES.rojo;
+    return `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--gris-200)">
+        <span style="font-size:12px;font-weight:500;color:var(--gris-700);min-width:120px;text-transform:capitalize">${nombre}</span>
+        <div class="pct-bar-track" style="flex:1"><div class="pct-bar-fill" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>
+        <span style="font-size:12px;font-weight:700;color:${col};min-width:38px;text-align:right">${pct}%</span>
+        <span style="font-size:10px;color:var(--gris-500)">${data.sprints} sprint${data.sprints>1?'s':''}</span>
+      </div>`;
+  }).join('');
+}
+
+/* ── DEMO DATA HISTORIAL ────────────────────────────────── */
+function generarHistorialDemo() {
+  const sprints = [];
+  const nombres = ['Somos','Yamaha','Comfama','Cajasan','Meyer','IGB'];
+  const base = new Date('2026-01-06');
+  for (let i = 0; i < 12; i++) {
+    const fecha   = new Date(base.getTime() + i * 7 * 86400000);
+    const comp    = 28 + Math.round(Math.sin(i) * 4);
+    const pctReal = 0.55 + Math.random() * 0.35;
+    const compl   = Math.round(comp * pctReal);
+    const pareto  = 58 + Math.round(Math.random() * 14);
+    sprints.push({
+      fecha:            fecha.toISOString(),
+      sprint:           `Semana ${String(fecha.getDate()).padStart(2,'0')}/${String(fecha.getMonth()+1).padStart(2,'0')}`,
+      spComprometidos:  comp,
+      spCompletados:    compl,
+      pctCumplimiento:  Math.round(compl / comp * 100),
+      arrastres:        Math.max(0, Math.round((1 - pctReal) * 8)),
+      pctPareto:        pareto,
+      spParetoComprometidos: Math.round(comp * pareto / 100),
+      issues:           Array.from({ length: comp }, (_, j) => ({ key: `${nombres[j%6]}V2-${i*10+j}` })),
+    });
+  }
+  return sprints;
+}
+
+/* ── EXPORT CSV ─────────────────────────────────────────── */
+function exportarCSV() {
+  const hist = obtenerHistorialFiltrado();
+  const data  = hist.length ? hist : generarHistorialDemo();
+  const header = 'Sprint,Fecha,SP Comprometidos,SP Completados,Cumplimiento %,Arrastres,Pareto %\n';
+  const rows   = data.map(s => [
+    `"${s.sprint || ''}"`,
+    s.fecha ? new Date(s.fecha).toLocaleDateString('es-CO') : '',
+    s.spComprometidos || 0,
+    s.spCompletados   || 0,
+    Math.round(s.pctCumplimiento || 0),
+    s.arrastres       || 0,
+    s.pctPareto       || '',
+  ].join(',')).join('\n');
+
+  const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `oncredit-metricas-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('CSV exportado', 'success');
+}
+
+/* ── HELPERS ────────────────────────────────────────────── */
+function formatSprintLabel(sprintOrFecha) {
+  if (!sprintOrFecha) return '—';
+  // Si parece fecha ISO
+  if (sprintOrFecha.includes('T') || sprintOrFecha.includes('-')) {
+    const d = new Date(sprintOrFecha);
+    if (!isNaN(d)) return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  // Si es nombre de sprint, devolver corto
+  return sprintOrFecha.replace(/semana/i,'').replace(/sprint/i,'Spr').trim().slice(0, 8);
+}
+/* ═══════════════════════════════════════════════════════════
+   FASE 4 — VISTA EJECUTIVA
+═══════════════════════════════════════════════════════════ */
+
+/* ── ENTRY POINT ────────────────────────────────────────── */
+function renderEjecutivo() {
+  const todas = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  const hist  = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial) || '[]');
+
+  renderEjCapacidad(todas);
+  renderEjProyectos(todas);
+  renderEjUAT();
+  renderEjRiesgos(todas);
+  renderEjDeploys();
+
+  const ahora = new Date().toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+  const elUpd = document.getElementById('ej-last-update');
+  if (elUpd) elUpd.textContent = `Actualizado ${ahora} · ${todas.length} historias en sprint`;
+
+  const sprint = hist[hist.length-1]?.sprint || SPRINT_ACTIVO?.name || 'Sprint activo';
+  const elSpr = document.getElementById('ej-sprint-nombre');
+  if (elSpr) elSpr.textContent = sprint;
+}
+
+/* ── CAPACIDAD ──────────────────────────────────────────── */
+function renderEjCapacidad(todas) {
+  const capDev   = +document.getElementById('cap-dev').value || CFG.spDev || 30;
+  const spTotal  = todas.reduce((a,i) => a + i.sp, 0);
+  const spPareto = (SPRINT_SELECCION.pareto||[]).reduce((a,i) => a + i.sp, 0);
+  const spDemas  = (SPRINT_SELECCION.demas||[]).reduce( (a,i) => a + i.sp, 0);
+  const pctP     = spTotal > 0 ? Math.round(spPareto / spTotal * 100) : 0;
+  const spDisp   = Math.max(0, capDev - spTotal);
+  const usoPct   = Math.min(Math.round(spTotal / capDev * 100), 100);
+  const usoColor = usoPct > 115 ? 'var(--rojo)' : usoPct > 100 ? 'var(--amber)' : 'var(--azul)';
+
+  const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  set('ej-sp-total',  spTotal.toFixed(1));
+  set('ej-sp-disp',   spDisp.toFixed(1));
+  set('ej-sp-pareto', spPareto.toFixed(1));
+  set('ej-sp-demas',  spDemas.toFixed(1));
+  set('ej-pct-pareto', pctP + '%');
+  set('ej-hu-total',  todas.length);
+
+  const bar = document.getElementById('ej-uso-bar');
+  const pct = document.getElementById('ej-uso-pct');
+  if (bar) { bar.style.width = usoPct + '%'; bar.style.background = usoColor; }
+  if (pct) { pct.textContent = usoPct + '% utilizado'; pct.style.color = usoColor; }
+}
+
+/* ── PROYECTOS ──────────────────────────────────────────── */
+function renderEjProyectos(todas) {
+  const grid = document.getElementById('ej-proyectos-grid');
+  if (!grid) return;
+
+  if (!todas.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--gris-500);font-size:12px">Selecciona historias en Planning para ver el estado por proyecto</div>';
+    document.getElementById('ej-badge-riesgo').style.display = 'none';
+    return;
+  }
+
+  const proyectos = [...new Set(todas.map(i => i.proyecto))];
+  let enRiesgo = 0;
+
+  grid.innerHTML = proyectos.map(p => {
+    const pIssues  = todas.filter(i => i.proyecto === p);
+    const esPareto = pIssues[0]?.esPareto;
+    const bloq     = pIssues.filter(i => i.clasificacion === 'bloqueada').length;
+    const compl    = pIssues.filter(i => SEG_COMPLETADAS[i.key]).length;
+    const pctCompl = Math.round(compl / pIssues.length * 100);
+    const sp       = pIssues.reduce((a,i) => a + i.sp, 0);
+    const deuda    = pIssues.filter(i => i.clasificacion === 'deuda').length;
+    const uat      = pIssues.filter(i => i.clasificacion === 'uat').length;
+
+    let dotColor, dotClass;
+    if (bloq > 0) { dotColor = 'var(--rojo)';  dotClass = 'dot-red';   enRiesgo++; }
+    else if (deuda > pIssues.length * 0.5 || pctCompl < 30) { dotColor = 'var(--amber)'; dotClass = 'dot-amber'; }
+    else { dotColor = 'var(--verde)'; dotClass = 'dot-green'; }
+
+    const hist = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial)||'[]');
+    const ultimosProy = hist.slice(-4).filter(s => s.issues?.some(i => i.key?.startsWith(p.slice(0,3).toUpperCase())));
+    const cumplProm = ultimosProy.length
+      ? Math.round(ultimosProy.reduce((a,s) => a + (s.pctCumplimiento||0), 0) / ultimosProy.length)
+      : null;
+
+    return `<div class="ej-proj-card">
+      <div class="ej-proj-top">
+        <div class="ej-dot" style="background:${dotColor}"></div>
+        <span class="ej-proj-name">${p}</span>
+        ${esPareto ? '<span class="ej-pareto-badge">Pareto</span>' : ''}
+      </div>
+      <div class="ej-proj-stats">
+        <div class="ej-proj-stat">
+          <div class="ej-proj-stat-val">${pIssues.length}</div>
+          <div class="ej-proj-stat-lbl">HU en sprint</div>
+        </div>
+        <div class="ej-proj-stat">
+          <div class="ej-proj-stat-val" style="color:${dotColor}">${sp.toFixed(1)}</div>
+          <div class="ej-proj-stat-lbl">SP comprometidos</div>
+        </div>
+        <div class="ej-proj-stat">
+          <div class="ej-proj-stat-val" style="color:${bloq>0?'var(--rojo)':'var(--gris-700)'}">${bloq}</div>
+          <div class="ej-proj-stat-lbl">Bloqueadas</div>
+        </div>
+        <div class="ej-proj-stat">
+          <div class="ej-proj-stat-val" style="color:var(--verde)">${uat}</div>
+          <div class="ej-proj-stat-lbl">En UAT</div>
+        </div>
+      </div>
+      ${cumplProm !== null ? `<div style="margin-top:8px;font-size:10px;color:var(--gris-500)">Cumplimiento histórico: <strong style="color:${cumplProm>=70?'var(--verde)':cumplProm>=50?'var(--amber)':'var(--rojo)'}">${cumplProm}%</strong></div>` : ''}
+    </div>`;
+  }).join('');
+
+  const badge = document.getElementById('ej-badge-riesgo');
+  if (badge) {
+    badge.style.display = enRiesgo > 0 ? '' : 'none';
+    badge.textContent = `${enRiesgo} en riesgo`;
+  }
+}
+
+/* ── UAT ────────────────────────────────────────────────── */
+function renderEjUAT() {
+  const uat = ISSUES.filter(i => i.clasificacion === 'uat');
+  const badge = document.getElementById('ej-badge-uat');
+  if (badge) badge.textContent = uat.length;
+
+  const tbody = document.getElementById('ej-uat-tbody');
+  if (!tbody) return;
+
+  if (!uat.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--gris-500)">Sin historias en UAT</td></tr>';
+    return;
+  }
+  const sorted = [...uat].sort((a,b) => b.diasDesdeCreacion - a.diasDesdeCreacion);
+  tbody.innerHTML = sorted.map(i => {
+    const diasCol = i.diasDesdeCreacion > 14 ? 'var(--rojo)' : i.diasDesdeCreacion > 7 ? 'var(--amber)' : 'var(--gris-700)';
+    return `<tr>
+      <td><a href="${i.url}" target="_blank" style="font-family:monospace;font-size:11px;font-weight:600;color:var(--azul);text-decoration:none">${i.key}</a></td>
+      <td><span class="hu-project ${i.esPareto?'pareto':''}">${i.proyecto}</span></td>
+      <td style="text-align:center;font-weight:700;color:${diasCol}">${i.diasDesdeCreacion}</td>
+      <td style="text-align:center;font-weight:600;color:var(--azul)">${i.sp||'?'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── RIESGOS ────────────────────────────────────────────── */
+function renderEjRiesgos(todas) {
+  const cont = document.getElementById('ej-riesgos-list');
+  if (!cont) return;
+
+  const riesgos = [];
+  const bloq = todas.filter(i => i.clasificacion === 'bloqueada');
+  const ret  = todas.filter(i => !SEG_COMPLETADAS[i.key] && i.diasDesdeCreacion > 14);
+  const spTotal = todas.reduce((a,i) => a+i.sp, 0);
+  const capDev  = +document.getElementById('cap-dev').value || CFG.spDev || 30;
+  const sinSP   = todas.filter(i => !i.sp);
+
+  if (bloq.length) riesgos.push({ nivel:'alto',  icon:'⊘', text:`${bloq.length} HU bloqueada${bloq.length>1?'s':''}: ${bloq.map(i=>i.key).join(', ')}` });
+  if (ret.length)  riesgos.push({ nivel:'medio', icon:'◔', text:`${ret.length} HU con más de 14 días sin cerrar` });
+  if (spTotal > capDev * 1.1) riesgos.push({ nivel:'medio', icon:'↑', text:`Sprint sobre-comprometido: ${spTotal.toFixed(1)} SP vs ${capDev} disponibles` });
+  if (sinSP.length) riesgos.push({ nivel:'info', icon:'?', text:`${sinSP.length} HU sin SP estimados` });
+
+  const hist = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial)||'[]');
+  const ultimos = hist.slice(-3).filter(s=>s.pctCumplimiento>0);
+  if (ultimos.length >= 2) {
+    const prom = ultimos.reduce((a,s)=>a+(s.pctCumplimiento||0),0)/ultimos.length;
+    if (prom < 60) riesgos.push({ nivel:'medio', icon:'↘', text:`Cumplimiento promedio últimos ${ultimos.length} sprints: ${Math.round(prom)}%` });
+  }
+
+  if (!riesgos.length) {
+    cont.innerHTML = '<div class="riesgo-row nivel-info"><span class="riesgo-row-icon">✓</span><span class="riesgo-row-text">Sin riesgos activos identificados</span></div>';
+    return;
+  }
+  cont.innerHTML = riesgos.slice(0,5).map(r => `
+    <div class="riesgo-row nivel-${r.nivel}" style="margin-bottom:6px">
+      <span class="riesgo-row-icon">${r.icon}</span>
+      <span class="riesgo-row-text">${r.text}</span>
+    </div>`).join('');
+}
+
+/* ── DESPLIEGUES ────────────────────────────────────────── */
+function renderEjDeploys() {
+  const deploys = JSON.parse(localStorage.getItem('oc_deploys') || '[]');
+  const cont    = document.getElementById('ej-deploys-list');
+  if (!cont) return;
+
+  if (!deploys.length) {
+    cont.innerHTML = '<div style="font-size:12px;color:var(--gris-500);padding:4px 0">Sin despliegues programados. Agrega uno abajo.</div>';
+    return;
+  }
+
+  const hoy     = new Date(); hoy.setHours(0,0,0,0);
+  const futuros = deploys.filter(d => new Date(d.fecha) >= hoy).sort((a,b) => new Date(a.fecha)-new Date(b.fecha));
+  const pasados = deploys.filter(d => new Date(d.fecha) <  hoy).sort((a,b) => new Date(b.fecha)-new Date(a.fecha)).slice(0,3);
+
+  const renderDeploy = (d, isPast) => {
+    const fecha  = new Date(d.fecha).toLocaleDateString('es-CO', { day:'2-digit', month:'short' });
+    const dias   = Math.round((new Date(d.fecha) - hoy) / 86400000);
+    const estado = isPast ? 'Completado' : dias === 0 ? 'Hoy' : dias === 1 ? 'Mañana' : `En ${dias}d`;
+    const color  = isPast ? 'var(--gris-300)' : dias <= 2 ? 'var(--rojo-light)' : 'var(--verde-bg)';
+    const textC  = isPast ? 'var(--gris-500)' : dias <= 2 ? 'var(--rojo)'        : 'var(--verde)';
+    return `<div class="ej-deploy-row">
+      <span class="ej-deploy-date">${fecha}</span>
+      <span class="ej-deploy-proj">${d.proyecto}</span>
+      ${d.notas ? `<span style="font-size:11px;color:var(--gris-500)">${d.notas}</span>` : ''}
+      <span class="ej-deploy-status" style="background:${color};color:${textC}">${estado}</span>
+      ${!isPast ? `<button onclick="eliminarDespliegue('${d.id}')" style="background:none;border:none;cursor:pointer;color:var(--gris-300);font-size:14px;padding:0 4px" title="Eliminar">×</button>` : ''}
+    </div>`;
+  };
+
+  cont.innerHTML =
+    (futuros.length ? futuros.map(d => renderDeploy(d,false)).join('') : '') +
+    (pasados.length ? `<div style="font-size:10px;color:var(--gris-500);padding:6px 0 2px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Recientes</div>` + pasados.map(d => renderDeploy(d,true)).join('') : '');
+}
+
+function agregarDespliegue() {
+  const fecha   = document.getElementById('ej-dep-fecha').value;
+  const proyecto= document.getElementById('ej-dep-proyecto').value.trim();
+  const notas   = document.getElementById('ej-dep-notas').value.trim();
+  if (!fecha || !proyecto) { toast('Fecha y proyecto son obligatorios', 'error'); return; }
+  const deploys = JSON.parse(localStorage.getItem('oc_deploys') || '[]');
+  deploys.push({ id: Date.now().toString(), fecha, proyecto, notas });
+  localStorage.setItem('oc_deploys', JSON.stringify(deploys));
+  document.getElementById('ej-dep-fecha').value    = '';
+  document.getElementById('ej-dep-proyecto').value = '';
+  document.getElementById('ej-dep-notas').value    = '';
+  renderEjDeploys();
+  toast('Despliegue agregado', 'success');
+}
+
+function eliminarDespliegue(id) {
+  const deploys = JSON.parse(localStorage.getItem('oc_deploys') || '[]');
+  localStorage.setItem('oc_deploys', JSON.stringify(deploys.filter(d => d.id !== id)));
+  renderEjDeploys();
+}
+
+/* ── COPIAR RESUMEN EJECUTIVO ───────────────────────────── */
+function copiarResumenEjecutivo() {
+  const todas   = [...(SPRINT_SELECCION.pareto||[]), ...(SPRINT_SELECCION.demas||[])];
+  const hist    = JSON.parse(localStorage.getItem(STORAGE_KEYS.historial)||'[]');
+  const sprint  = hist[hist.length-1]?.sprint || SPRINT_ACTIVO?.name || 'Sprint actual';
+  const spTotal = todas.reduce((a,i)=>a+i.sp,0);
+  const capDev  = +document.getElementById('cap-dev').value || 30;
+  const spPareto= (SPRINT_SELECCION.pareto||[]).reduce((a,i)=>a+i.sp,0);
+  const pctP    = spTotal > 0 ? Math.round(spPareto/spTotal*100) : 0;
+  const bloq    = todas.filter(i=>i.clasificacion==='bloqueada');
+  const uat     = ISSUES.filter(i=>i.clasificacion==='uat');
+  const deploys = JSON.parse(localStorage.getItem('oc_deploys')||'[]');
+  const hoy     = new Date(); hoy.setHours(0,0,0,0);
+  const proxDep = deploys.filter(d=>new Date(d.fecha)>=hoy).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).slice(0,3);
+
+  const lineas = [
+    `📋 *Resumen Ejecutivo — ${sprint}*`,
+    `📅 ${new Date().toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' })}`,
+    '',
+    `*Capacidad del sprint*`,
+    `• SP comprometidos: ${spTotal.toFixed(1)} / ${capDev} (${Math.round(spTotal/capDev*100)}% utilizado)`,
+    `• Pareto: ${spPareto.toFixed(1)} SP (${pctP}%) · Demás: ${(spTotal-spPareto).toFixed(1)} SP (${100-pctP}%)`,
+    `• Total historias: ${todas.length}`,
+    '',
+  ];
+
+  if (bloq.length) lineas.push(`⛔ *Bloqueadas (${bloq.length}):* ${bloq.map(i=>`${i.key} — ${i.proyecto}`).join(', ')}`);
+  if (uat.length)  lineas.push(`🔍 *En UAT (${uat.length}):* ${uat.map(i=>i.key).join(', ')}`);
+  if (proxDep.length) {
+    lineas.push('', '*Próximos despliegues:*');
+    proxDep.forEach(d => {
+      const f = new Date(d.fecha).toLocaleDateString('es-CO',{day:'2-digit',month:'short'});
+      lineas.push(`• ${f} — ${d.proyecto}${d.notas?' ('+d.notas+')':''}`);
+    });
+  }
+
+  navigator.clipboard.writeText(lineas.join('\n'))
+    .then(() => toast('Resumen copiado para Slack', 'success'))
+    .catch(() => toast('No se pudo copiar', 'error'));
+}
+
+/* ── HOOK: actualizar ejecutivo tras sincronizar ────────── */
+const _actualizarUIOriginal = actualizarUI;
+function actualizarUI() {
+  _actualizarUIOriginal();
+  const tab = document.getElementById('tab-ejecutivo');
+  if (tab?.classList.contains('active')) renderEjecutivo();
+}
+
+/* ── RESIZE OBSERVER para métricas ─────────────────────── */
+function instalarResizeObserver() {
+  if (!window.ResizeObserver) return;
+  const ids = ['chart-velocity','chart-cumplimiento','chart-pareto','chart-deuda','chart-tendencia'];
+  ids.forEach(id => {
+    const canvas = document.getElementById(id);
+    if (!canvas?.parentElement) return;
+    new ResizeObserver(() => {
+      const tab = document.getElementById('tab-metricas');
+      if (tab?.classList.contains('active')) renderMetricas();
+    }).observe(canvas.parentElement);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  instalarResizeObserver();
+});
+
+</script>
+</body>
+</html>
