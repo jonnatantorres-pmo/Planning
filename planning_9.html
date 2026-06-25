@@ -1389,7 +1389,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       </p>
       <textarea id="cfg-pareto" rows="6"
         style="width:100%;padding:8px 10px;border-radius:var(--r);border:1px solid var(--gris-300);font-size:12px;font-family:monospace;resize:vertical"
-        placeholder="Somos&#10;Yamaha&#10;Comfama&#10;Filiales&#10;Portal&#10;Haceb"></textarea>
+        placeholder="Comfama&#10;Filiales&#10;Haceb&#10;Somos&#10;Yamaha"></textarea>
       <div style="margin-top:8px">
         <button class="btn-primary" onclick="guardarPareto()">Guardar Pareto</button>
       </div>
@@ -1502,7 +1502,8 @@ function _ocMainInit() {
       token:    '',   // <-- pega aquí el nuevo token después de regenerarlo
       boardId:  '1',
       spDev: 30, spRef: 8, umbralDeuda: 7,
-      proyectosPareto: ['Somos','Yamaha','Comfama','Filiales','Portal','Haceb'],
+      proyectosPareto: ['Comfama','Filiales','Haceb','Somos','Yamaha'],
+      proyectosExcluir: ['OCIV2'],
       estadosExcluir:  ['Done','Disponible para pruebas cliente','Deploy Ready UAT','Cerrado','Cancelado'],
       estadosDOR:      ['DOR','Definition of Ready','Listo para desarrollo','QA Ready'],
       estadosUAT:      ['UAT','En pruebas cliente','QA','Testing','En pruebas'],
@@ -1539,7 +1540,8 @@ function cargarConfig() {
     boardId: '1',
     spDev: 30, spRef: 8,
     umbralDeuda: 7,
-    proyectosPareto: ['Somos','Yamaha','Comfama','Filiales','Portal','Haceb'],
+    proyectosPareto: ['Comfama','Filiales','Haceb','Somos','Yamaha'],
+    proyectosExcluir: ['OCIV2'],
     estadosExcluir: ['Done','Disponible para pruebas cliente','Deploy Ready UAT','Cerrado','Cancelado'],
     estadosDOR: ['DOR','Definition of Ready','Listo para desarrollo','QA Ready'],
     estadosUAT: ['UAT','En pruebas cliente','QA','Testing','En pruebas'],
@@ -1793,7 +1795,10 @@ async function cargarIssues() {
   const proyData = await jiraFetch('/rest/api/3/project/search', {
     maxResults: 50, expand: 'issueCount',
   });
-  const proyV2 = (proyData.values || []).filter(p => esProyectoV2(p.key, p.name));
+  const excluirProyectos = (CFG.proyectosExcluir || ['OCIV2']).map(k => k.toUpperCase());
+  const proyV2 = (proyData.values || []).filter(p =>
+    esProyectoV2(p.key, p.name) && !excluirProyectos.includes((p.key || '').toUpperCase())
+  );
 
   if (!proyV2.length) {
     toast('No se encontraron proyectos V2 en Jira', 'warn');
@@ -1864,7 +1869,7 @@ function procesarIssueV2(raw) {
   const fechaCreacion     = new Date(f.created || Date.now());
   const diasDesdeCreacion = Math.floor((Date.now() - fechaCreacion) / 86400000);
   const clasificacion     = clasificarEstado(estado);
-  const esPareto          = esProyectoPareto(proyecto);
+  const esPareto  = esProyectoPareto(proyecto, proyectoKey);
   const esDeuda           = clasificacion === 'deuda' || diasDesdeCreacion > (CFG.umbralDeuda || 7);
   return {
     key:               raw.key,
@@ -1894,7 +1899,7 @@ function procesarIssue(raw) {
   const fechaCreacion     = new Date(f.created);
   const diasDesdeCreacion = Math.floor((Date.now() - fechaCreacion) / 86400000);
   const clasificacion = clasificarEstado(estado);
-  const esPareto  = esProyectoPareto(proyecto);
+  const esPareto  = esProyectoPareto(proyecto, proyectoKey);
   const esDeuda   = clasificacion === 'deuda' || diasDesdeCreacion > (CFG.umbralDeuda || 7);
   return {
     key:               raw.key,
@@ -1943,7 +1948,11 @@ function matchEstados(estadoLower, lista) {
   return (lista || []).some(s => estadoLower.includes(s.toLowerCase()));
 }
 
-function esProyectoPareto(nombre) {
+function esProyectoPareto(nombre, proyectoKey) {
+  const clavesPareto = ['COMV2','FLV2','HACV2','SOMV2','YAMV2'];
+  // Primero comparar por clave exacta (más confiable)
+  if (proyectoKey && clavesPareto.includes(proyectoKey.toUpperCase())) return true;
+  // Fallback: comparar por nombre en config (para demo data y configuraciones manuales)
   return (CFG.proyectosPareto || []).some(p =>
     nombre.toLowerCase().includes(p.toLowerCase())
   );
@@ -1955,22 +1964,25 @@ function esProyectoPareto(nombre) {
 function cargarDemoData() {
   // Proyectos V2 — nombre limpio para UI, key real de Jira
   const proyectos = [
-    { nombre: 'Yamaha',        key: 'YAMV2',  pareto: true  },
-    { nombre: 'Somos',         key: 'SOMV2',  pareto: true  },
-    { nombre: 'Comfama',       key: 'COMV2',  pareto: true  },
-    { nombre: 'Filiales',      key: 'FILV2',  pareto: true  },
-    { nombre: 'Portal',        key: 'PORV2',  pareto: true  },
-    { nombre: 'Haceb',         key: 'HACV2',  pareto: true  },
-    { nombre: 'Meyer',         key: 'MEYV2',  pareto: false },
-    { nombre: 'Cajasan',       key: 'CAJV2',  pareto: false },
-    { nombre: 'Multiactiva',   key: 'MULV2',  pareto: false },
-    { nombre: 'IGB',           key: 'IGBV2',  pareto: false },
-    { nombre: 'Comfamiliar',   key: 'CFHV2',  pareto: false },
-    { nombre: 'Comfenalco',    key: 'CFEV2',  pareto: false },
-    { nombre: 'Coinversiones', key: 'COIV2',  pareto: false },
-    { nombre: 'Creditodo',     key: 'CREV2',  pareto: false },
-    { nombre: 'Mutual',        key: 'MUTV2',  pareto: false },
-    { nombre: 'GET Solutions', key: 'GETV2',  pareto: false },
+    // PARETO — claves reales confirmadas
+    { nombre: 'Comfama',               key: 'COMV2',   pareto: true  },
+    { nombre: 'Filiales',              key: 'FLV2',    pareto: true  },
+    { nombre: 'Haceb',                 key: 'HACV2',   pareto: true  },
+    { nombre: 'Somos',                 key: 'SOMV2',   pareto: true  },
+    { nombre: 'Yamaha',                key: 'YAMV2',   pareto: true  },
+    // DEMÁS CLIENTES
+    { nombre: 'Comfamiliar Huila',     key: 'CHV2',    pareto: false },
+    { nombre: 'Cajasan',               key: 'CAJV2',   pareto: false },
+    { nombre: 'Comfenalco',            key: 'CMV2',    pareto: false },
+    { nombre: 'Creditodo',             key: 'CRDV2',   pareto: false },
+    { nombre: 'Fiar',                  key: 'FIARV2',  pareto: false },
+    { nombre: 'GetSolution',           key: 'GETV2',   pareto: false },
+    { nombre: 'IGB',                   key: 'IGBV2',   pareto: false },
+    { nombre: 'Meyer',                 key: 'MEYERV2', pareto: false },
+    { nombre: 'Multiactiva Comultrasan',key: 'MCV2',   pareto: false },
+    { nombre: 'Coopminuto',            key: 'COOPMV2', pareto: false },
+    { nombre: 'ALCA',                  key: 'ALCAV2',  pareto: false },
+    { nombre: 'Sercomunicaciones',     key: 'SERV2',   pareto: false },
   ];
 
   const plantillas = {
@@ -2010,7 +2022,6 @@ function cargarDemoData() {
     { key:'MUTV2-166', proyecto:'Mutual',      cl:'dor',      sp:1.25, dias:2,  res:'Ajuste simulador de crédito' },
     { key:'CFHV2-99',  proyecto:'Comfamiliar', cl:'dor',      sp:3,    dias:4,  res:'Formulario deudor — campos condicionales' },
     { key:'CFEV2-24',  proyecto:'Comfenalco',  cl:'dor',      sp:4,    dias:3,  res:'Módulo de libranza — nueva etapa validación' },
-    { key:'COIV2-269', proyecto:'Coinversiones',cl:'deuda',   sp:2,    dias:9,  res:'Consulta score crediticio — manejo de timeout' },
     { key:'CREV2-419', proyecto:'Creditodo',   cl:'deuda',    sp:0,    dias:14, res:'Módulo retail — integración POS' },
     { key:'GETV2-22',  proyecto:'GET Solutions',cl:'uat',     sp:1.5,  dias:7,  res:'Ajuste de reportería — filtros de fecha' },
   ];
