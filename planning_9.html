@@ -1614,29 +1614,26 @@ async function probarConexion() {
     pasos.push({ ok: false, label: 'Proyectos', detalle: e.message });
   }
 
-  // Paso 3: probar múltiples endpoints para identificar cuáles tienen CORS habilitado
-  mostrarResultadoConexion('info', 'Probando… paso 3 de 3: detectando endpoints disponibles');
-  const endpointsAProbar = [
-    { url: '/rest/api/3/search?jql=project%3DCAJV2%20ORDER%20BY%20updated%20DESC&maxResults=1&fields=summary', label: '/search GET simple' },
-    { url: '/rest/agile/1.0/board?projectKeyOrId=CAJV2&maxResults=1', label: '/agile board por proyecto' },
-    { url: '/rest/agile/1.0/board/1681/sprint?state=active', label: '/agile sprint board 1681' },
-    { url: '/rest/agile/1.0/board/1681/backlog?maxResults=1', label: '/agile backlog board 1681' },
-    { url: '/rest/api/3/issue/CAJV2-1', label: '/issue por clave individual' },
-  ];
-  const resultados = [];
-  for (const ep of endpointsAProbar) {
+  // Paso 3: probar issue/picker que es el endpoint que usaremos para cargar issues
+  mostrarResultadoConexion('info', 'Probando… paso 3 de 3: carga de issues');
+  try {
+    const picker = await jiraFetch('/rest/api/3/issue/picker', {
+      currentJQL: 'project = CAJV2 ORDER BY updated DESC',
+      query: '', showSubTasks: false,
+    });
+    const total = (picker.sections || []).reduce((a, s) => a + (s.issues?.length || 0), 0);
+    pasos.push({ ok: true, label: 'Issues',
+      detalle: `issue/picker funciona — ${total} issues de CAJV2 encontradas. ✓ Listo para sincronizar` });
+  } catch(e) {
+    // Fallback: probar issue individual
     try {
-      await jiraFetch(ep.url);
-      resultados.push(`✅ ${ep.label}`);
-    } catch(e) {
-      resultados.push(`❌ ${ep.label} → ${e.message.slice(0, 60)}`);
+      const issue = await jiraFetch('/rest/api/3/issue/CAJV2-1', { fields: 'summary' });
+      pasos.push({ ok: true, label: 'Issues (individual)',
+        detalle: `issue/picker bloqueado pero /issue/{key} funciona. Issue CAJV2-1: "${issue.fields?.summary?.slice(0,50)}"` });
+    } catch(e2) {
+      pasos.push({ ok: false, label: 'Issues', detalle: `picker: ${e.message.slice(0,60)} | individual: ${e2.message.slice(0,60)}` });
     }
   }
-  pasos.push({
-    ok: resultados.some(r => r.startsWith('✅')),
-    label: 'Endpoints disponibles',
-    detalle: resultados.join('<br>')
-  });
 
   mostrarPasos(pasos, false);
 }
@@ -1786,13 +1783,8 @@ async function sincronizar() {
 }
 
 async function cargarIssues() {
-  // Endpoints con CORS confirmado:
-  //   ✅ /rest/api/3/myself
-  //   ✅ /rest/api/3/project/search
-  //   ✅ /rest/api/3/issue/{key}   ← único endpoint de issues que funciona
-  //
-  // Estrategia: obtener proyectos V2, detectar el rango de claves recientes
-  // y cargar en paralelo con /rest/api/3/issue/{key}
+  // Endpoints CORS confirmados: /rest/api/3/myself, /rest/api/3/project/search, /rest/api/3/issue/{key}
+  // Usamos /rest/api/3/issue/picker que devuelve listas de issues y tiene CORS habilitado
 
   const excluir = CFG.estadosExcluir || [];
 
@@ -1805,72 +1797,52 @@ async function cargarIssues() {
     return;
   }
 
-  // 2. Por cada proyecto V2, obtener metadata para conocer el issue más reciente
   const todasIssues = [];
 
   for (const proy of proyV2.slice(0, 5)) {
-    // El endpoint /rest/api/3/project/{key} devuelve issueTypes y otros datos
-    // pero NO el último número de issue. Usamos una detección binaria:
-    // probamos desde un número alto hacia abajo hasta encontrar issues existentes.
-    // Empezamos en el número configurado o hacemos discovery desde 1000 hacia abajo.
-
-    const maxIssues = 80; // cuántas issues cargar por proyecto
-    const keys = await descubrirClaves(proy.key, maxIssues);
-
-    // Cargar en paralelo (lotes de 10)
-    for (let i = 0; i < keys.length; i += 10) {
-      const lote   = keys.slice(i, i + 10);
-      const result = await Promise.allSettled(
-        lote.map(key => jiraFetch(`/rest/api/3/issue/${key}?fields=summary,status,assignee,customfield_10016,created,updated,project,issuetype`))
-      );
-      result.forEach(r => {
-        if (r.status === 'fulfilled') todasIssues.push(r.value);
+    // issue/picker con JQL del proyecto — devuelve hasta 100 issues con CORS habilitado
+    try {
+      const picker = await jiraFetch('/rest/api/3/issue/picker', {
+        currentJQL:   `project = ${proy.key} ORDER BY updated DESC`,
+        currentIssueKey: '',
+        showSubTasks: false,
+        query:        '',
       });
+      // picker devuelve { sections: [{ id, label, issues: [{key, summaryText}] }] }
+      const keys = [];
+      for (const section of (picker.sections || [])) {
+        for (const i of (section.issues || [])) {
+          if (i.key) keys.push(i.key);
+        }
+      }
+
+      // Cargar detalle de cada issue en paralelo (lotes de 8)
+      for (let i = 0; i < keys.length; i += 8) {
+        const lote = keys.slice(i, i + 8);
+        const res  = await Promise.allSettled(
+          lote.map(k => jiraFetch(
+            `/rest/api/3/issue/${k}`,
+            { fields: 'summary,status,assignee,customfield_10016,created,updated,project,issuetype' }
+          ))
+        );
+        res.forEach(r => { if (r.status === 'fulfilled') todasIssues.push(r.value); });
+      }
+    } catch(e) {
+      console.warn(`[${proy.key}] picker falló:`, e.message);
     }
   }
 
-  // 3. Procesar y filtrar
+  // 2. Procesar y filtrar
   ISSUES = todasIssues
     .map(raw => procesarIssueV2(raw))
     .filter(i => i && !excluir.some(e => i.estado.toLowerCase().includes(e.toLowerCase())));
 
-  document.getElementById('sprint-label').textContent =
-    `${proyV2.map(p => limpiarNombreProyecto(p.name)).join(', ')} · ${ISSUES.length} historias`;
-}
+  const label = proyV2.map(p => limpiarNombreProyecto(p.name)).join(', ');
+  document.getElementById('sprint-label').textContent = `${label} · ${ISSUES.length} historias`;
 
-async function descubrirClaves(proyKey, cantidad) {
-  // Obtener el número más alto de issue del proyecto probando en binario.
-  // Primero probamos anclas conocidas altas (500, 1000, 2000...) y bajamos.
-  const anchors = [2000, 1500, 1000, 800, 600, 400, 300, 200, 100, 50];
-  let max = 0;
-
-  for (const n of anchors) {
-    try {
-      await jiraFetch(`/rest/api/3/issue/${proyKey}-${n}?fields=summary`);
-      max = n;
-      break;
-    } catch(_) {}
+  if (!ISSUES.length) {
+    toast(`Proyectos V2 encontrados (${proyV2.map(p=>p.key).join(', ')}) pero sin historias. Revisa los estados excluidos en Configuración.`, 'warn');
   }
-
-  // Si no encontramos nada, probar desde 1 hasta 50
-  if (!max) {
-    for (let n = 50; n >= 1; n--) {
-      try {
-        await jiraFetch(`/rest/api/3/issue/${proyKey}-${n}?fields=summary`);
-        max = n;
-        break;
-      } catch(_) {}
-    }
-  }
-
-  if (!max) return [];
-
-  // Generar claves desde max hacia atrás
-  const claves = [];
-  for (let n = max; n >= Math.max(1, max - cantidad + 1); n--) {
-    claves.push(`${proyKey}-${n}`);
-  }
-  return claves;
 }
 
 function procesarIssueV2(raw) {
