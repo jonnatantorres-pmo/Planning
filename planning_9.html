@@ -1786,85 +1786,121 @@ async function sincronizar() {
 }
 
 async function cargarIssues() {
-  // Solo estos endpoints tienen CORS habilitado en Atlassian Cloud:
-  // - /rest/api/3/myself           ✓ confirmado
-  // - /rest/api/3/project/search   ✓ confirmado
-  // - /rest/api/3/issue/{key}      ✓ funciona (issue individual)
-  // Estrategia: obtener proyectos V2, luego sus issues recientes via /rest/api/3/issue/{key}
-  // usando el endpoint de búsqueda de issues por proyecto que sí permite CORS
+  // Endpoints con CORS confirmado:
+  //   ✅ /rest/api/3/myself
+  //   ✅ /rest/api/3/project/search
+  //   ✅ /rest/api/3/issue/{key}   ← único endpoint de issues que funciona
+  //
+  // Estrategia: obtener proyectos V2, detectar el rango de claves recientes
+  // y cargar en paralelo con /rest/api/3/issue/{key}
 
-  const excluir = (CFG.estadosExcluir || []);
-  const fields  = 'summary,status,assignee,customfield_10016,created,updated,project,issuetype';
+  const excluir = CFG.estadosExcluir || [];
 
-  // 1. Obtener proyectos V2 (ya sabemos que funciona)
-  const proyData = await jiraFetch('/rest/api/3/project/search', {
-    maxResults: 50,
-    expand: 'description',
-  });
-  const proyV2 = (proyData.values || []).filter(p =>
-    esProyectoV2(p.key || '', p.name || '')
-  );
+  // 1. Proyectos V2
+  const proyData = await jiraFetch('/rest/api/3/project/search', { maxResults: 50 });
+  const proyV2   = (proyData.values || []).filter(p => esProyectoV2(p.key, p.name));
 
   if (!proyV2.length) {
     toast('No se encontraron proyectos V2 en Jira', 'warn');
     return;
   }
 
-  // 2. Por cada proyecto V2, cargar issues usando /rest/api/3/project/{key}/versions
-  // y el endpoint correcto que tiene CORS: GET /rest/api/3/search con parámetros
-  // mínimos vía URL (no body) — intentar con startAt paginado
-  let todasIssues = [];
+  // 2. Por cada proyecto V2, obtener metadata para conocer el issue más reciente
+  const todasIssues = [];
 
   for (const proy of proyV2.slice(0, 5)) {
-    // Intentar cargar issues del proyecto con el endpoint que tiene CORS habilitado
-    // Atlassian permite GET a /rest/api/3/search solo si los params son simples
-    try {
-      const jql = encodeURIComponent(`project = ${proy.key} ORDER BY updated DESC`);
-      const url  = `/rest/api/3/search?jql=${jql}&maxResults=100&fields=${fields}`;
-      const data = await jiraFetch(url);
-      todasIssues.push(...(data.issues || []));
+    // El endpoint /rest/api/3/project/{key} devuelve issueTypes y otros datos
+    // pero NO el último número de issue. Usamos una detección binaria:
+    // probamos desde un número alto hacia abajo hasta encontrar issues existentes.
+    // Empezamos en el número configurado o hacemos discovery desde 1000 hacia abajo.
 
-      // Sprint activo por este proyecto si hay board configurado
-      try {
-        const boardData = await jiraFetch('/rest/agile/1.0/board', {
-          projectKeyOrId: proy.key, maxResults: 1
-        });
-        const board = boardData.values?.[0];
-        if (board) {
-          CFG._boardIdV2 = board.id;
-          const sprintData = await jiraFetch(
-            `/rest/agile/1.0/board/${board.id}/sprint`, { state: 'active' }
-          );
-          const activo = sprintData.values?.[0];
-          if (activo) {
-            SPRINT_ACTIVO = activo;
-            document.getElementById('sprint-label').textContent = `Sprint: ${activo.name}`;
-          }
-        }
-      } catch(_) {}
+    const maxIssues = 80; // cuántas issues cargar por proyecto
+    const keys = await descubrirClaves(proy.key, maxIssues);
 
-    } catch(e) {
-      // Si /search sigue fallando, cargar solo la issue más reciente conocida del proyecto
-      console.warn(`[${proy.key}] search falló:`, e.message);
+    // Cargar en paralelo (lotes de 10)
+    for (let i = 0; i < keys.length; i += 10) {
+      const lote   = keys.slice(i, i + 10);
+      const result = await Promise.allSettled(
+        lote.map(key => jiraFetch(`/rest/api/3/issue/${key}?fields=summary,status,assignee,customfield_10016,created,updated,project,issuetype`))
+      );
+      result.forEach(r => {
+        if (r.status === 'fulfilled') todasIssues.push(r.value);
+      });
     }
   }
 
-  // 3. Deduplicar
-  const vistas = new Set();
-  const unicas = todasIssues.filter(i => {
-    if (vistas.has(i.key)) return false;
-    vistas.add(i.key); return true;
-  });
+  // 3. Procesar y filtrar
+  ISSUES = todasIssues
+    .map(raw => procesarIssueV2(raw))
+    .filter(i => i && !excluir.some(e => i.estado.toLowerCase().includes(e.toLowerCase())));
 
-  // 4. Procesar y filtrar estados excluidos
-  const procesadas = unicas.map(i => procesarIssue(i));
-  ISSUES = procesadas.filter(i =>
-    !excluir.some(e => i.estado.toLowerCase().includes(e.toLowerCase()))
-  );
+  document.getElementById('sprint-label').textContent =
+    `${proyV2.map(p => limpiarNombreProyecto(p.name)).join(', ')} · ${ISSUES.length} historias`;
+}
 
-  if (!ISSUES.length) {
-    toast(`Proyectos V2 encontrados (${proyV2.map(p=>p.key).join(', ')}) pero sin issues visibles. Verifica permisos del token.`, 'warn');
+async function descubrirClaves(proyKey, cantidad) {
+  // Obtener el número más alto de issue del proyecto probando en binario.
+  // Primero probamos anclas conocidas altas (500, 1000, 2000...) y bajamos.
+  const anchors = [2000, 1500, 1000, 800, 600, 400, 300, 200, 100, 50];
+  let max = 0;
+
+  for (const n of anchors) {
+    try {
+      await jiraFetch(`/rest/api/3/issue/${proyKey}-${n}?fields=summary`);
+      max = n;
+      break;
+    } catch(_) {}
   }
+
+  // Si no encontramos nada, probar desde 1 hasta 50
+  if (!max) {
+    for (let n = 50; n >= 1; n--) {
+      try {
+        await jiraFetch(`/rest/api/3/issue/${proyKey}-${n}?fields=summary`);
+        max = n;
+        break;
+      } catch(_) {}
+    }
+  }
+
+  if (!max) return [];
+
+  // Generar claves desde max hacia atrás
+  const claves = [];
+  for (let n = max; n >= Math.max(1, max - cantidad + 1); n--) {
+    claves.push(`${proyKey}-${n}`);
+  }
+  return claves;
+}
+
+function procesarIssueV2(raw) {
+  if (!raw || !raw.fields) return null;
+  const f = raw.fields;
+  const sp                = f.customfield_10016 || 0;
+  const estado            = f.status?.name || '';
+  const proyectoKey       = f.project?.key  || raw.key?.split('-')[0] || '';
+  const proyectoNombreRaw = f.project?.name || proyectoKey;
+  const proyecto          = limpiarNombreProyecto(proyectoNombreRaw);
+  const fechaCreacion     = new Date(f.created || Date.now());
+  const diasDesdeCreacion = Math.floor((Date.now() - fechaCreacion) / 86400000);
+  const clasificacion     = clasificarEstado(estado);
+  const esPareto          = esProyectoPareto(proyecto);
+  const esDeuda           = clasificacion === 'deuda' || diasDesdeCreacion > (CFG.umbralDeuda || 7);
+  return {
+    key:               raw.key,
+    id:                raw.id,
+    resumen:           f.summary || '',
+    estado,
+    clasificacion:     (clasificacion === 'excluida') ? 'excluida' : esDeuda ? 'deuda' : clasificacion,
+    proyecto,
+    proyectoKey,
+    proyectoNombreRaw,
+    sp:                parseFloat(sp) || 0,
+    asignado:          f.assignee?.displayName || '',
+    diasDesdeCreacion,
+    esPareto,
+    url: `${(CFG.baseUrl||'https://coxti.atlassian.net').replace(/\/$/,'')}/browse/${raw.key}`,
+  };
 }
 
 function procesarIssue(raw) {
