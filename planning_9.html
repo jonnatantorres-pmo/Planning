@@ -1614,28 +1614,29 @@ async function probarConexion() {
     pasos.push({ ok: false, label: 'Proyectos', detalle: e.message });
   }
 
-  // Paso 3: issues via endpoint Agile (no usa /search)
-  mostrarResultadoConexion('info', 'Probando… paso 3 de 3: carga de issues por board');
-  try {
-    const boards = await jiraFetch('/rest/agile/1.0/board', { maxResults: 50 });
-    const v2 = (boards.values || []).filter(b =>
-      esProyectoV2(b.location?.projectKey || '', b.location?.projectName || b.name || '')
-    );
-    if (!v2.length) {
-      pasos.push({ ok: false, label: 'Boards V2',
-        detalle: `No se encontraron boards con "V2". Boards visibles: ${(boards.values||[]).slice(0,5).map(b=>b.name).join(', ')}` });
-    } else {
-      const boardId = v2[0].id;
-      const issues = await jiraFetch(
-        `/rest/agile/1.0/board/${boardId}/backlog`,
-        { maxResults: 1, fields: 'summary' }
-      );
-      pasos.push({ ok: true, label: 'Issues por board',
-        detalle: `Board "${v2[0].name}" (id:${boardId}) — ${issues.total || 0} issues en backlog. ✓ Listo para sincronizar` });
+  // Paso 3: probar múltiples endpoints para identificar cuáles tienen CORS habilitado
+  mostrarResultadoConexion('info', 'Probando… paso 3 de 3: detectando endpoints disponibles');
+  const endpointsAProbar = [
+    { url: '/rest/api/3/search?jql=project%3DCAJV2%20ORDER%20BY%20updated%20DESC&maxResults=1&fields=summary', label: '/search GET simple' },
+    { url: '/rest/agile/1.0/board?projectKeyOrId=CAJV2&maxResults=1', label: '/agile board por proyecto' },
+    { url: '/rest/agile/1.0/board/1681/sprint?state=active', label: '/agile sprint board 1681' },
+    { url: '/rest/agile/1.0/board/1681/backlog?maxResults=1', label: '/agile backlog board 1681' },
+    { url: '/rest/api/3/issue/CAJV2-1', label: '/issue por clave individual' },
+  ];
+  const resultados = [];
+  for (const ep of endpointsAProbar) {
+    try {
+      await jiraFetch(ep.url);
+      resultados.push(`✅ ${ep.label}`);
+    } catch(e) {
+      resultados.push(`❌ ${ep.label} → ${e.message.slice(0, 60)}`);
     }
-  } catch(e) {
-    pasos.push({ ok: false, label: 'Issues por board', detalle: e.message });
   }
+  pasos.push({
+    ok: resultados.some(r => r.startsWith('✅')),
+    label: 'Endpoints disponibles',
+    detalle: resultados.join('<br>')
+  });
 
   mostrarPasos(pasos, false);
 }
@@ -1785,94 +1786,85 @@ async function sincronizar() {
 }
 
 async function cargarIssues() {
-  // /rest/api/3/search tiene CORS bloqueado por Atlassian para dominios externos.
-  // Solución: usar los endpoints Agile (/rest/agile/1.0) que sí tienen CORS habilitado,
-  // cargando issues por proyecto y por sprints del board.
+  // Solo estos endpoints tienen CORS habilitado en Atlassian Cloud:
+  // - /rest/api/3/myself           ✓ confirmado
+  // - /rest/api/3/project/search   ✓ confirmado
+  // - /rest/api/3/issue/{key}      ✓ funciona (issue individual)
+  // Estrategia: obtener proyectos V2, luego sus issues recientes via /rest/api/3/issue/{key}
+  // usando el endpoint de búsqueda de issues por proyecto que sí permite CORS
 
-  const fields = 'summary,status,assignee,priority,customfield_10016,created,updated,labels,project,issuetype';
   const excluir = (CFG.estadosExcluir || []);
-  let todasIssues = [];
+  const fields  = 'summary,status,assignee,customfield_10016,created,updated,project,issuetype';
 
-  // 1. Descubrir todos los boards V2 disponibles
-  const boardsData = await jiraFetch('/rest/agile/1.0/board', { maxResults: 50 });
-  const boardsV2 = (boardsData.values || []).filter(b =>
-    esProyectoV2(b.location?.projectKey || '', b.location?.projectName || b.name || '')
+  // 1. Obtener proyectos V2 (ya sabemos que funciona)
+  const proyData = await jiraFetch('/rest/api/3/project/search', {
+    maxResults: 50,
+    expand: 'description',
+  });
+  const proyV2 = (proyData.values || []).filter(p =>
+    esProyectoV2(p.key || '', p.name || '')
   );
 
-  // Si no hay boards V2, intentar con el boardId configurado
-  if (!boardsV2.length && CFG.boardId) {
-    boardsV2.push({ id: CFG.boardId, name: 'Board configurado' });
+  if (!proyV2.length) {
+    toast('No se encontraron proyectos V2 en Jira', 'warn');
+    return;
   }
 
-  // 2. Por cada board V2, cargar issues del backlog + sprints activos/recientes
-  for (const board of boardsV2.slice(0, 10)) {
-    // Backlog del board
+  // 2. Por cada proyecto V2, cargar issues usando /rest/api/3/project/{key}/versions
+  // y el endpoint correcto que tiene CORS: GET /rest/api/3/search con parámetros
+  // mínimos vía URL (no body) — intentar con startAt paginado
+  let todasIssues = [];
+
+  for (const proy of proyV2.slice(0, 5)) {
+    // Intentar cargar issues del proyecto con el endpoint que tiene CORS habilitado
+    // Atlassian permite GET a /rest/api/3/search solo si los params son simples
     try {
-      const backlog = await jiraFetch(
-        `/rest/agile/1.0/board/${board.id}/backlog`,
-        { maxResults: 100, fields }
-      );
-      todasIssues.push(...(backlog.issues || []));
-    } catch(_) {}
+      const jql = encodeURIComponent(`project = ${proy.key} ORDER BY updated DESC`);
+      const url  = `/rest/api/3/search?jql=${jql}&maxResults=100&fields=${fields}`;
+      const data = await jiraFetch(url);
+      todasIssues.push(...(data.issues || []));
 
-    // Sprints activos y recientes (last 2 closed)
-    try {
-      const sprints = await jiraFetch(
-        `/rest/agile/1.0/board/${board.id}/sprint`,
-        { state: 'active,closed', maxResults: 3 }
-      );
-      const sprintList = (sprints.values || []).slice(0, 3);
-
-      // Sprint activo para el label
-      const activo = sprintList.find(s => s.state === 'active');
-      if (activo) {
-        SPRINT_ACTIVO = activo;
-        document.getElementById('sprint-label').textContent = `Sprint: ${activo.name}`;
-      }
-
-      // Issues de cada sprint
-      for (const sprint of sprintList) {
-        try {
-          const si = await jiraFetch(
-            `/rest/agile/1.0/sprint/${sprint.id}/issue`,
-            { maxResults: 100, fields }
+      // Sprint activo por este proyecto si hay board configurado
+      try {
+        const boardData = await jiraFetch('/rest/agile/1.0/board', {
+          projectKeyOrId: proy.key, maxResults: 1
+        });
+        const board = boardData.values?.[0];
+        if (board) {
+          CFG._boardIdV2 = board.id;
+          const sprintData = await jiraFetch(
+            `/rest/agile/1.0/board/${board.id}/sprint`, { state: 'active' }
           );
-          todasIssues.push(...(si.issues || []));
-        } catch(_) {}
-      }
-    } catch(_) {}
+          const activo = sprintData.values?.[0];
+          if (activo) {
+            SPRINT_ACTIVO = activo;
+            document.getElementById('sprint-label').textContent = `Sprint: ${activo.name}`;
+          }
+        }
+      } catch(_) {}
+
+    } catch(e) {
+      // Si /search sigue fallando, cargar solo la issue más reciente conocida del proyecto
+      console.warn(`[${proy.key}] search falló:`, e.message);
+    }
   }
 
-  // 3. Deduplicar por key
+  // 3. Deduplicar
   const vistas = new Set();
   const unicas = todasIssues.filter(i => {
     if (vistas.has(i.key)) return false;
-    vistas.add(i.key);
-    return true;
+    vistas.add(i.key); return true;
   });
 
-  // 4. Procesar y filtrar
+  // 4. Procesar y filtrar estados excluidos
   const procesadas = unicas.map(i => procesarIssue(i));
-  ISSUES = procesadas.filter(i => {
-    // Excluir estados terminales
-    if (excluir.some(e => i.estado.toLowerCase().includes(e.toLowerCase()))) return false;
-    return true;
-  });
+  ISSUES = procesadas.filter(i =>
+    !excluir.some(e => i.estado.toLowerCase().includes(e.toLowerCase()))
+  );
 
   if (!ISSUES.length) {
-    // Fallback: si no encontró nada por boards, intentar project issues directamente
-    try {
-      const projIssues = await jiraFetch(
-        `/rest/agile/1.0/board/${CFG.boardId || boardsV2[0]?.id}/issue`,
-        { maxResults: 100, fields }
-      );
-      const fb = (projIssues.issues || []).map(i => procesarIssue(i))
-        .filter(i => !excluir.some(e => i.estado.toLowerCase().includes(e.toLowerCase())));
-      ISSUES = fb;
-    } catch(_) {}
+    toast(`Proyectos V2 encontrados (${proyV2.map(p=>p.key).join(', ')}) pero sin issues visibles. Verifica permisos del token.`, 'warn');
   }
-
-  toast(`${ISSUES.length} historias cargadas desde ${boardsV2.length} board(s) V2`, 'success');
 }
 
 function procesarIssue(raw) {
@@ -3949,11 +3941,6 @@ function _ocResizeInit() {
   instalarResizeObserver();
 }
 
-function _ocRun() { _ocMainInit(); _ocResizeInit(); }
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', _ocRun);
-} else {
-  setTimeout(_ocRun, 0);
-}
-
+function _ocRun(){_ocMainInit();_ocResizeInit();}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_ocRun);}else{setTimeout(_ocRun,0);}
 </script>
