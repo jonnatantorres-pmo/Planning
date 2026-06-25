@@ -1746,6 +1746,7 @@ async function sincronizar() {
 
   try {
     await cargarIssues();
+    reconciliarSprint();   // ← actualiza el sprint activo con datos frescos de Jira
     actualizarUI();
     const ahora = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
     document.getElementById('sync-status').textContent = `Actualizado ${ahora}`;
@@ -2198,11 +2199,20 @@ function renderHuCard(issue, sinDrag) {
   const claseCard = `hu-card ${issue.clasificacion}`;
   const drag = sinDrag ? '' : `draggable="true" ondragstart="onDragStart(event,'${issue.key}')" ondragend="onDragEnd(event)"`;
   const claseProyecto = `hu-project ${issue.esPareto ? 'pareto' : ''}`;
+
+  // Indicadores de trazabilidad
+  const sinDatos = issue.sinDatosRecientes
+    ? `<span title="No apareció en el último sync" style="font-size:9px;background:var(--gris-200);color:var(--gris-500);padding:1px 5px;border-radius:3px;margin-left:4px">sin sync</span>`
+    : '';
+  const cambioEstado = issue._estadoAnterior
+    ? `<span title="Estado anterior: ${issue._estadoAnterior}" style="font-size:9px;background:var(--amber-bg);color:var(--amber);padding:1px 5px;border-radius:3px;margin-left:4px">↑ ${issue._estadoAnterior}</span>`
+    : '';
   return `
     <div class="${claseCard}" id="hu-${issue.key}" ${drag}>
       <div class="hu-top">
         <a href="${issue.url}" target="_blank" class="hu-key">${issue.key}</a>
         ${badge}
+        ${sinDatos}${cambioEstado}
         <span class="hu-sp">${issue.sp > 0 ? issue.sp + ' SP' : '? SP'}</span>
       </div>
       <div class="hu-title">${issue.resumen}</div>
@@ -2543,19 +2553,64 @@ function guardarSprint() {
    PERSISTENCIA LOCAL
 ═══════════════════════════════════════════════════════════ */
 function guardarSeleccionLocal() {
-  localStorage.setItem(STORAGE_KEYS.seleccion, JSON.stringify(SPRINT_SELECCION));
+  // Guarda la selección junto con un timestamp para saber cuándo fue la última planning
+  const payload = {
+    seleccion:    SPRINT_SELECCION,
+    ultimaPlanning: new Date().toISOString(),
+    version:      2,
+  };
+  localStorage.setItem(STORAGE_KEYS.seleccion, JSON.stringify(payload));
 }
 
 function cargarSeleccionLocal() {
   const saved = localStorage.getItem(STORAGE_KEYS.seleccion);
-  if (saved) {
-    SPRINT_SELECCION = JSON.parse(saved);
+  if (!saved) return;
+  try {
+    const payload = JSON.parse(saved);
+    // Compatibilidad con versión anterior (guardaba directo sin wrapper)
+    SPRINT_SELECCION = payload.version === 2 ? payload.seleccion : payload;
     renderSprintColumns();
     recalcCapacidad();
     renderResumenTabla();
     renderSeguimiento();
     document.getElementById('badge-seg').textContent =
       (SPRINT_SELECCION.pareto?.length || 0) + (SPRINT_SELECCION.demas?.length || 0);
+  } catch(_) {}
+}
+
+/* ── RECONCILIACIÓN SPRINT CON JIRA ─────────────────────── */
+// Después de cada sync, actualiza el estado de las issues del sprint
+// con los datos frescos de Jira sin perder la selección del usuario.
+function reconciliarSprint() {
+  if (!ISSUES.length) return;
+
+  // Índice de issues frescas por clave
+  const idx = {};
+  ISSUES.forEach(i => { idx[i.key] = i; });
+
+  let actualizadas = 0;
+
+  ['pareto', 'demas'].forEach(grupo => {
+    SPRINT_SELECCION[grupo] = (SPRINT_SELECCION[grupo] || []).map(issue => {
+      const fresca = idx[issue.key];
+      if (!fresca) {
+        // Issue no vino en este sync — marcar como "sin datos recientes" pero mantener
+        return { ...issue, sinDatosRecientes: true };
+      }
+      const cambio = issue.estado !== fresca.estado || issue.sp !== fresca.sp;
+      if (cambio) actualizadas++;
+      // Actualizar estado, SP y clasificación con datos frescos; preservar posición en sprint
+      return {
+        ...fresca,
+        sinDatosRecientes: false,
+        _estadoAnterior: cambio ? issue.estado : undefined,
+      };
+    });
+  });
+
+  if (actualizadas > 0) {
+    guardarSeleccionLocal();
+    toast(`${actualizadas} historia${actualizadas > 1 ? 's' : ''} del sprint actualizada${actualizadas > 1 ? 's' : ''} desde Jira`, 'info');
   }
 }
 
